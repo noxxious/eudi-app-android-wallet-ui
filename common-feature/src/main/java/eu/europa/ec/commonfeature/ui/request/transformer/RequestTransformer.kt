@@ -61,6 +61,11 @@ private fun getMandatoryFields(documentIdentifier: DocumentIdentifier): List<Str
             "issuing_authority",
         )
 
+        DocumentIdentifier.POR -> listOf(
+            "eservice",
+            "effective_until_date"
+        )
+
         else -> emptyList()
     }
 

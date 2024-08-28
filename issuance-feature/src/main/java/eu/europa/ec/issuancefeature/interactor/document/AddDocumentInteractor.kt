@@ -93,34 +93,12 @@ class AddDocumentInteractorImpl(
                     available = true
                 ),
                 DocumentOptionItemUi(
-                    text = DocumentIdentifier.MDL.toUiName(resourceProvider),
+                    text = DocumentIdentifier.POR.toUiName(resourceProvider),
                     icon = AppIcons.Id,
-                    type = DocumentIdentifier.MDL,
-                    available = canCreateExtraDocument(flowType)
-                ),
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.AGE.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.AGE,
-                    available = canCreateExtraDocument(flowType)
-                ),
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.PHOTOID.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.PHOTOID,
+                    type = DocumentIdentifier.POR,
                     available = canCreateExtraDocument(flowType)
                 )
             )
-            if (flowType == IssuanceFlowUiConfig.NO_DOCUMENT) {
-                options.add(
-                    DocumentOptionItemUi(
-                        text = DocumentIdentifier.SAMPLE.toUiName(resourceProvider),
-                        icon = AppIcons.Id,
-                        type = DocumentIdentifier.SAMPLE,
-                        available = true
-                    )
-                )
-            }
             emit(
                 AddDocumentInteractorPartialState.Success(
                     options = options

@@ -593,7 +593,7 @@ object TestsData {
                         value = testFieldUi.value
                     )
 
-                    is DocumentIdentifier.SAMPLE, is DocumentIdentifier.OTHER -> throw NotSupportedDocumentTypeException
+                    is DocumentIdentifier.SAMPLE, is DocumentIdentifier.OTHER, is DocumentIdentifier.POR -> throw NotSupportedDocumentTypeException
                 }
 
                 resultList.add(RequestDataUi.Space())
@@ -774,7 +774,7 @@ object TestsData {
                 docRequest = mockedPhotoIdWithBasicFieldsDocRequest
             }
 
-            is DocumentIdentifier.SAMPLE, is DocumentIdentifier.OTHER -> throw NotSupportedDocumentTypeException
+            is DocumentIdentifier.SAMPLE, is DocumentIdentifier.OTHER, is DocumentIdentifier.POR -> throw NotSupportedDocumentTypeException
         }
 
         return RequestDocumentItemUi(

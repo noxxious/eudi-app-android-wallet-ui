@@ -36,6 +36,9 @@ dependencies {
     implementation(project(LibraryModule.BusinessLogic.path))
     implementation(project(LibraryModule.AuthenticationLogic.path))
 
+    implementation(libs.ktor.android)
+    implementation(libs.ktor.logging)
+
     implementation(libs.androidx.biometric)
 }
 

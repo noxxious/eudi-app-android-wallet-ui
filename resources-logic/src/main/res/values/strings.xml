@@ -77,6 +77,7 @@
     <string name="age_verification">Age Verification</string>
     <string name="load_sample_data">Load Sample Documents</string>
     <string name="photo_id">Photo ID</string>
+    <string name="por">Power Of Representation</string>
 
     <!-- Biometric prompt -->
     <string name="biometric_prompt_title">Biometric authentication</string>
@@ -259,5 +260,13 @@
 
     <!-- Issuance Document Errors -->
     <string name="issuance_generic_error">Something went wrong issuing your document(s)</string>
+
+    <!-- Power of representation localizations -->
+    <string name="legal_person_identifier">Legal person identifier</string>
+    <string name="full_powers">Full powers</string>
+    <string name="eservice">eService</string>
+    <string name="legal_name">Legal name</string>
+    <string name="effective_from_date">Effective from date</string>
+    <string name="effective_until_date">Effective until date</string>
 
 </resources>

@@ -19,6 +19,7 @@ package eu.europa.ec.corelogic.config
 import android.content.Context
 import eu.europa.ec.corelogic.BuildConfig
 import eu.europa.ec.corelogic.controller.WalletCoreLogController
+import eu.europa.ec.corelogic.util.ProvideKtorHttpClient
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.eudi.wallet.transfer.openid4vp.ClientIdScheme
@@ -33,10 +34,10 @@ internal class WalletCoreConfigImpl(
 ) : WalletCoreConfig {
 
     private companion object {
-        const val OPENID4VP_VERIFIER_API_URI = "https://dev.verifier.eudiw.dev"
-        const val OPENID4VP_VERIFIER_LEGAL_NAME = "EUDI Remote Verifier"
+        const val OPENID4VP_VERIFIER_API_URI = "https://snf-895762.vm.okeanos.grnet.gr/"
+        const val OPENID4VP_VERIFIER_LEGAL_NAME = "Hackathon verifier"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
-        const val VCI_ISSUER_URL = "https://dev.issuer.eudiw.dev"
+        const val VCI_ISSUER_URL = "https://192.168.8.112:8443/issuer"
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
     }
@@ -79,6 +80,7 @@ internal class WalletCoreConfigImpl(
                                 BuildConfig.MDOC_OPENID4VP_SCHEME
                             )
                         )
+                        withHttpClientFactory { ProvideKtorHttpClient.client() }
                     }
                     .openId4VciConfig {
                         issuerUrl(issuerUrl = VCI_ISSUER_URL)
@@ -93,6 +95,9 @@ internal class WalletCoreConfigImpl(
                         )
                     }
                     .trustedReaderCertificates(R.raw.eudi_pid_issuer_ut)
+                    .ktorHttpClientFactory {
+                        ProvideKtorHttpClient.client()
+                    }
                     .build()
             }
             return _config!!
