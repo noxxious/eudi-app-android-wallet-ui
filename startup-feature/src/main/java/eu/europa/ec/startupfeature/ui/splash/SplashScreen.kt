@@ -89,7 +89,7 @@ private fun Content(
             Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.backgroundPaper),
+                .background(MaterialTheme.colorScheme.secondary),
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(

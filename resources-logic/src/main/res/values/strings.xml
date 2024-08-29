@@ -95,7 +95,7 @@
     <string name="quick_pin_numerical_rule_invalid_error_message">Only numerical values are allowed</string>
     <string name="quick_pin_non_match">Pins do not match</string>
 
-    <string name="quick_pin_create_title">Welcome to the EUDI Wallet</string>
+    <string name="quick_pin_create_title">Welcome to the UC1 Wallet</string>
     <string name="quick_pin_create_enter_subtitle">Set a quick pin for future logins</string>
     <string name="quick_pin_create_reenter_subtitle">Re-enter the quick pin</string>
 
@@ -118,7 +118,7 @@
     <!-- Request Screen -->
     <string name="request_title_before_badge">Verifier</string>
     <string name="request_title_after_badge">\ requests the following</string>
-    <string name="request_no_data">The requested document is not available in your EUDI Wallet.
+    <string name="request_no_data">The requested document is not available in your UC1 Wallet.
         Please contact the authorised issuer for further information.</string>
     <string name="request_subtitle_one">Please review carefully before sharing your data.</string>
     <string name="request_subtitle_two">\ Why we need your data?</string>
@@ -212,7 +212,7 @@
     <!-- Issuance Add Document Screen -->
     <string name="issuance_add_document">@string/generic_continue_capitalized</string>
     <string name="issuance_add_document_title">Add document</string>
-    <string name="issuance_add_document_subtitle">Select a document to add in your EUDI Wallet</string>
+    <string name="issuance_add_document_subtitle">Select a document to add in your UC1 Wallet</string>
     <string name="issuance_add_document_user_auth_required">User authentication is required</string>
     <string name="issuance_add_document_deferred_success_title">@string/generic_deferred_success_title</string>
     <string name="issuance_add_document_deferred_success_subtitle">Your document has been requested. You will be notified when it has been issued to your wallet.</string>
