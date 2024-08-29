@@ -34,10 +34,13 @@ internal class WalletCoreConfigImpl(
 ) : WalletCoreConfig {
 
     private companion object {
-        const val OPENID4VP_VERIFIER_API_URI = "https://snf-895762.vm.okeanos.grnet.gr/"
+        const val OPENID4VP_VERIFIER_API_URI = "https://snf-895762.vm.okeanos.grnet.gr"
         const val OPENID4VP_VERIFIER_LEGAL_NAME = "Hackathon verifier"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
-        const val VCI_ISSUER_URL = "https://192.168.8.112:8443/issuer"
+        const val OPENID4VP_PID_VERIFIER_API_URI = "https://192.168.8.107:8443/verifier-api"
+        const val OPENID4VP_PID_VERIFIER_LEGAL_NAME = "Hackathon Pid verifier"
+        const val OPENID4VP_PID_VERIFIER_CLIENT_ID = "pid_verifier"
+        const val VCI_ISSUER_URL = "https://192.168.8.107:8443/issuer"
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
     }
@@ -68,6 +71,11 @@ internal class WalletCoreConfigImpl(
                                             clientId = OPENID4VP_VERIFIER_CLIENT_ID,
                                             verifierApi = OPENID4VP_VERIFIER_API_URI,
                                             legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+                                        ),
+                                        PreregisteredVerifier(
+                                            clientId = OPENID4VP_PID_VERIFIER_CLIENT_ID,
+                                            verifierApi = OPENID4VP_PID_VERIFIER_API_URI,
+                                            legalName = OPENID4VP_PID_VERIFIER_LEGAL_NAME
                                         )
                                     )
                                 )
