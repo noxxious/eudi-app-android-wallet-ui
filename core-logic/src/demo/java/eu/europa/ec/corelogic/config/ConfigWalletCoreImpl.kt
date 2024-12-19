@@ -24,6 +24,7 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.eudi.wallet.transfer.openid4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openid4vp.EncryptionAlgorithm
 import eu.europa.ec.eudi.wallet.transfer.openid4vp.EncryptionMethod
+import eu.europa.ec.eudi.wallet.transfer.openid4vp.PreregisteredVerifier
 import eu.europa.ec.resourceslogic.R
 
 internal class WalletCoreConfigImpl(
@@ -32,7 +33,10 @@ internal class WalletCoreConfigImpl(
 ) : WalletCoreConfig {
 
     private companion object {
-        const val VCI_ISSUER_URL = "https://issuer.eudiw.dev"
+        const val OPENID4VP_VERIFIER_API_URI = "https://verifier-api.eudiw-lt.lengor.dev"
+        const val OPENID4VP_VERIFIER_LEGAL_NAME = "LT Potential Test verifier"
+        const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
+        const val VCI_ISSUER_URL = "https://issuer.eudiw-lt.lengor.dev"
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
     }
@@ -56,7 +60,16 @@ internal class WalletCoreConfigImpl(
 
                         withClientIdSchemes(
                             listOf(
-                                ClientIdScheme.X509SanDns
+                                ClientIdScheme.X509SanDns,
+                                ClientIdScheme.Preregistered(
+                                    listOf(
+                                        PreregisteredVerifier(
+                                            clientId = OPENID4VP_VERIFIER_CLIENT_ID,
+                                            verifierApi = OPENID4VP_VERIFIER_API_URI,
+                                            legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+                                        )
+                                    )
+                                )
                             )
                         )
                         withScheme(
@@ -80,6 +93,8 @@ internal class WalletCoreConfigImpl(
                         )
                     }
                     .trustedReaderCertificates(R.raw.eudi_pid_issuer_ut)
+                    .trustedReaderCertificates(R.raw.mdl_ds_0001_lt_dev_cert)
+                    .trustedReaderCertificates(R.raw.pid_ds_0001_lt_dev_cert)
                     .build()
             }
             return _config!!

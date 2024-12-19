@@ -50,4 +50,5 @@ sign
 fastlane/report.xml
 
 # Kotlin
-.kotlin/*
+.kotlin/*!/local.properties
+
