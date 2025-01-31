@@ -24,12 +24,12 @@ import eu.europa.ec.commonfeature.di.FeatureCommonModule
 import eu.europa.ec.corelogic.di.LogicCoreModule
 import eu.europa.ec.dashboardfeature.di.FeatureDashboardModule
 import eu.europa.ec.issuancefeature.di.FeatureIssuanceModule
-import eu.europa.ec.loginfeature.di.FeatureLoginModule
 import eu.europa.ec.networklogic.di.LogicNetworkModule
 import eu.europa.ec.presentationfeature.di.FeaturePresentationModule
 import eu.europa.ec.proximityfeature.di.FeatureProximityModule
 import eu.europa.ec.resourceslogic.di.LogicResourceModule
 import eu.europa.ec.startupfeature.di.FeatureStartupModule
+import eu.europa.ec.storagelogic.di.LogicStorageModule
 import eu.europa.ec.uilogic.di.LogicUiModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -47,12 +47,12 @@ private val assembledModules = listOf(
     LogicAnalyticsModule().module,
     LogicAuthenticationModule().module,
     LogicCoreModule().module,
+    LogicStorageModule().module,
 
     // Feature Modules
     FeatureCommonModule().module,
     FeatureDashboardModule().module,
     FeatureStartupModule().module,
-    FeatureLoginModule().module,
     FeaturePresentationModule().module,
     FeatureProximityModule().module,
     FeatureIssuanceModule().module

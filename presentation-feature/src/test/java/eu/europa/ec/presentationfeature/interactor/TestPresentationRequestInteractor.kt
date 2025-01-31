@@ -19,20 +19,15 @@ package eu.europa.ec.presentationfeature.interactor
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.config.toDomainConfig
-import eu.europa.ec.commonfeature.util.TestsData.createTransformedRequestDataUi
+import eu.europa.ec.commonfeature.ui.request.transformer.RequestTransformer
 import eu.europa.ec.commonfeature.util.TestsData.mockedRequestElementIdentifierNotAvailable
-import eu.europa.ec.commonfeature.util.TestsData.mockedRequestRequiredFieldsTitle
-import eu.europa.ec.commonfeature.util.TestsData.mockedTransformedRequestDataUiForMdlWithBasicFields
-import eu.europa.ec.commonfeature.util.TestsData.mockedTransformedRequestDataUiForPidWithBasicFields
 import eu.europa.ec.commonfeature.util.TestsData.mockedValidMdlWithBasicFieldsRequestDocument
 import eu.europa.ec.commonfeature.util.TestsData.mockedValidPidWithBasicFieldsRequestDocument
 import eu.europa.ec.commonfeature.util.TestsData.mockedVerifierName
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
-import eu.europa.ec.eudi.iso18013.transfer.DisclosedDocuments
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testfeature.MockResourceProviderForStringCalls.mockTransformToUiItemsCall
 import eu.europa.ec.testfeature.mockedExceptionWithMessage
@@ -48,7 +43,9 @@ import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.extension.toFlow
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import junit.framework.TestCase.assertEquals
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -89,8 +86,6 @@ class TestPresentationRequestInteractor {
         )
 
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)
-        whenever(resourceProvider.getString(R.string.request_required_fields_title))
-            .thenReturn(mockedRequestRequiredFieldsTitle)
     }
 
     @After
@@ -231,7 +226,7 @@ class TestPresentationRequestInteractor {
 
     // Case 5 Expected Result:
     // ProximityRequestInteractorPartialState.Success state, with:
-    // 1. a list with the transformed basic fields to RequestDataUi items,
+    // 1. a list with the transformed basic fields to RequestDocumentsUi items,
     // 2. the same not null String for verifier name,
     // 3. true for verifierIsTrusted.
     @Test
@@ -262,15 +257,25 @@ class TestPresentationRequestInteractor {
             // When
             interactor.getRequestDocuments()
                 .runFlowTest {
-                    val expectedResult = PresentationRequestInteractorPartialState.Success(
-                        requestDocuments = createTransformedRequestDataUi(
-                            items = listOf(
-                                mockedTransformedRequestDataUiForPidWithBasicFields,
-                                mockedTransformedRequestDataUiForMdlWithBasicFields
-                            )
+                    val requestDataUi = RequestTransformer.transformToDomainItems(
+                        storageDocuments = listOf(
+                            mockedPidWithBasicFields,
+                            mockedMdlWithBasicFields
                         ),
+                        requestDocuments = listOf(
+                            mockedValidPidWithBasicFieldsRequestDocument,
+                            mockedValidMdlWithBasicFieldsRequestDocument
+                        ),
+                        resourceProvider = resourceProvider
+                    )
+
+                    val expectedResult = PresentationRequestInteractorPartialState.Success(
                         verifierName = mockedVerifierName,
-                        verifierIsTrusted = mockedVerifierIsTrusted
+                        verifierIsTrusted = mockedVerifierIsTrusted,
+                        requestDocuments = RequestTransformer.transformToUiItems(
+                            documentsDomain = requestDataUi.getOrThrow(),
+                            resourceProvider = resourceProvider,
+                        )
                     )
                     // Then
                     assertEquals(
@@ -370,9 +375,7 @@ class TestPresentationRequestInteractor {
 
         verify(walletCorePresentationController, times(1))
             .updateRequestedDocuments(
-                disclosedDocuments = DisclosedDocuments(
-                    documents = emptyList()
-                )
+                disclosedDocuments = mutableListOf()
             )
     }
     //endregion
@@ -420,13 +423,13 @@ class TestPresentationRequestInteractor {
     private fun mockEmissionOfIntentionallyNotHandledEvents() {
         whenever(walletCorePresentationController.events)
             .thenReturn(
-                flowOf(
-                    TransferEventPartialState.Connected,
-                    TransferEventPartialState.Connecting,
-                    TransferEventPartialState.QrEngagementReady(""),
-                    TransferEventPartialState.Redirect(uri = URI("")),
-                    TransferEventPartialState.ResponseSent,
-                )
+                flow {
+                    emit(TransferEventPartialState.Connected)
+                    emit(TransferEventPartialState.Connecting)
+                    emit(TransferEventPartialState.QrEngagementReady(""))
+                    emit(TransferEventPartialState.Redirect(uri = URI("")))
+                    emit(TransferEventPartialState.ResponseSent)
+                }.shareIn(coroutineRule.testScope, SharingStarted.Lazily, 2)
             )
     }
 

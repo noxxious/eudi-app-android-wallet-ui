@@ -31,8 +31,11 @@ interface DeviceAuthenticationController {
     fun authenticate(
         context: Context,
         biometryCrypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         result: DeviceAuthenticationResult
     )
+
+    fun launchBiometricSystemScreen()
 }
 
 class DeviceAuthenticationControllerImpl(
@@ -47,6 +50,7 @@ class DeviceAuthenticationControllerImpl(
     override fun authenticate(
         context: Context,
         biometryCrypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         result: DeviceAuthenticationResult
     ) {
         (context as? FragmentActivity)?.let { activity ->
@@ -60,7 +64,8 @@ class DeviceAuthenticationControllerImpl(
                         .setTitle(resourceProvider.getString(R.string.biometric_prompt_title))
                         .setSubtitle(resourceProvider.getString(R.string.biometric_prompt_subtitle))
                         .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                        .build()
+                        .build(),
+                    notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
                 )
 
                 if (data.authenticationResult != null) {
@@ -73,10 +78,14 @@ class DeviceAuthenticationControllerImpl(
             }
         }
     }
+
+    override fun launchBiometricSystemScreen() {
+        biometricAuthenticationController.launchBiometricSystemScreen()
+    }
 }
 
 data class DeviceAuthenticationResult(
-    val onAuthenticationSuccess: () -> Unit = {},
+    val onAuthenticationSuccess: suspend () -> Unit = {},
     val onAuthenticationError: () -> Unit = {},
     val onAuthenticationFailure: () -> Unit = {},
 )

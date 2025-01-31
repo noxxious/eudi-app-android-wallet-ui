@@ -25,17 +25,18 @@ import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.commonfeature.model.DocumentOptionItemUi
-import eu.europa.ec.commonfeature.model.toUiName
-import eu.europa.ec.corelogic.controller.AddSampleDataPartialState
+import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
 import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
-import eu.europa.ec.corelogic.model.DocType
-import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.resourceslogic.theme.values.ThemeColors
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.ListItemData
+import eu.europa.ec.uilogic.component.ListItemMainContentData
+import eu.europa.ec.uilogic.component.ListItemTrailingContentData
+import eu.europa.ec.uilogic.component.utils.PERCENTAGE_25
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.NavigationType
 import eu.europa.ec.uilogic.navigation.CommonScreens
@@ -59,14 +60,13 @@ interface AddDocumentInteractor {
 
     fun issueDocument(
         issuanceMethod: IssuanceMethod,
-        documentType: DocType
+        configId: String
     ): Flow<IssueDocumentPartialState>
-
-    fun addSampleData(): Flow<AddSampleDataPartialState>
 
     fun handleUserAuth(
         context: Context,
         crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult
     )
 
@@ -79,54 +79,44 @@ class AddDocumentInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
     private val resourceProvider: ResourceProvider,
-    private val uiSerializer: UiSerializer,
+    private val uiSerializer: UiSerializer
 ) : AddDocumentInteractor {
+
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
     override fun getAddDocumentOption(flowType: IssuanceFlowUiConfig): Flow<AddDocumentInteractorPartialState> =
         flow {
-            val options = mutableListOf(
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.PID.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.PID,
-                    available = true
-                ),
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.MDL.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.MDL,
-                    available = canCreateExtraDocument(flowType)
-                ),
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.AGE.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.AGE,
-                    available = canCreateExtraDocument(flowType)
-                ),
-                DocumentOptionItemUi(
-                    text = DocumentIdentifier.PHOTOID.toUiName(resourceProvider),
-                    icon = AppIcons.Id,
-                    type = DocumentIdentifier.PHOTOID,
-                    available = canCreateExtraDocument(flowType)
+            when (val state =
+                walletCoreDocumentsController.getScopedDocuments(resourceProvider.getLocale())) {
+                is FetchScopedDocumentsPartialState.Failure -> emit(
+                    AddDocumentInteractorPartialState.Failure(
+                        error = state.errorMessage
+                    )
                 )
-            )
-            if (flowType == IssuanceFlowUiConfig.NO_DOCUMENT) {
-                options.add(
-                    DocumentOptionItemUi(
-                        text = DocumentIdentifier.SAMPLE.toUiName(resourceProvider),
-                        icon = AppIcons.Id,
-                        type = DocumentIdentifier.SAMPLE,
-                        available = true
+
+                is FetchScopedDocumentsPartialState.Success -> emit(
+                    AddDocumentInteractorPartialState.Success(
+                        options = state.documents
+                            .sortedBy { it.name.lowercase() }
+                            .mapNotNull {
+                                if (flowType != IssuanceFlowUiConfig.NO_DOCUMENT || it.isPid) {
+                                    DocumentOptionItemUi(
+                                        itemData = ListItemData(
+                                            itemId = it.configurationId,
+                                            mainContentData = ListItemMainContentData.Text(text = it.name),
+                                            trailingContentData = ListItemTrailingContentData.Icon(
+                                                iconData = AppIcons.Add
+                                            )
+                                        )
+                                    )
+                                } else {
+                                    null
+                                }
+                            }
                     )
                 )
             }
-            emit(
-                AddDocumentInteractorPartialState.Success(
-                    options = options
-                )
-            )
         }.safeAsync {
             AddDocumentInteractorPartialState.Failure(
                 error = it.localizedMessage ?: genericErrorMsg
@@ -135,37 +125,32 @@ class AddDocumentInteractorImpl(
 
     override fun issueDocument(
         issuanceMethod: IssuanceMethod,
-        documentType: DocType
+        configId: String
     ): Flow<IssueDocumentPartialState> =
         walletCoreDocumentsController.issueDocument(
             issuanceMethod = issuanceMethod,
-            documentType = documentType
+            configId = configId
         )
-
-    override fun addSampleData(): Flow<AddSampleDataPartialState> =
-        walletCoreDocumentsController.addSampleData()
 
     override fun handleUserAuth(
         context: Context,
         crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult
     ) {
         deviceAuthenticationInteractor.getBiometricsAvailability {
             when (it) {
                 is BiometricsAvailability.CanAuthenticate -> {
                     deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
+                        context = context,
+                        crypto = crypto,
+                        notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                        resultHandler = resultHandler
                     )
                 }
 
                 is BiometricsAvailability.NonEnrolled -> {
-                    deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
-                    )
+                    deviceAuthenticationInteractor.launchBiometricSystemScreen()
                 }
 
                 is BiometricsAvailability.Failure -> {
@@ -204,16 +189,16 @@ class AddDocumentInteractorImpl(
     private fun getSuccessScreenArgumentsForDeferred(
         navigation: ConfigNavigation
     ): String {
-        val (headerConfig, imageConfig, buttonText) = Triple(
-            first = SuccessUIConfig.HeaderConfig(
-                title = resourceProvider.getString(R.string.issuance_add_document_deferred_success_title),
-                color = ThemeColors.warning
+        val (textElementsConfig, imageConfig, buttonText) = Triple(
+            first = SuccessUIConfig.TextElementsConfig(
+                text = resourceProvider.getString(R.string.issuance_add_document_deferred_success_text),
+                description = resourceProvider.getString(R.string.issuance_add_document_deferred_success_description),
+                color = ThemeColors.pending
             ),
             second = SuccessUIConfig.ImageConfig(
-                type = SuccessUIConfig.ImageConfig.Type.DRAWABLE,
-                drawableRes = AppIcons.ClockTimer.resourceId,
-                tint = ThemeColors.warning,
-                contentDescription = resourceProvider.getString(AppIcons.ClockTimer.contentDescriptionId)
+                type = SuccessUIConfig.ImageConfig.Type.Drawable(icon = AppIcons.InProgress),
+                tint = ThemeColors.primary,
+                screenPercentageSize = PERCENTAGE_25,
             ),
             third = resourceProvider.getString(R.string.issuance_add_document_deferred_success_primary_button_text)
         )
@@ -222,8 +207,7 @@ class AddDocumentInteractorImpl(
             mapOf(
                 SuccessUIConfig.serializedKeyName to uiSerializer.toBase64(
                     SuccessUIConfig(
-                        headerConfig = headerConfig,
-                        content = resourceProvider.getString(R.string.issuance_add_document_deferred_success_subtitle),
+                        textElementsConfig = textElementsConfig,
                         imageConfig = imageConfig,
                         buttonConfig = listOf(
                             SuccessUIConfig.ButtonConfig(
@@ -239,7 +223,4 @@ class AddDocumentInteractorImpl(
             )
         )
     }
-
-    private fun canCreateExtraDocument(flowType: IssuanceFlowUiConfig): Boolean =
-        flowType != IssuanceFlowUiConfig.NO_DOCUMENT
 }

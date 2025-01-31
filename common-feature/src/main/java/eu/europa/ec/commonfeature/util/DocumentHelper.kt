@@ -17,32 +17,31 @@
 package eu.europa.ec.commonfeature.util
 
 import eu.europa.ec.businesslogic.extension.decodeFromBase64
-import eu.europa.ec.businesslogic.util.getStringFromJsonOrEmpty
+import eu.europa.ec.businesslogic.util.safeLet
 import eu.europa.ec.businesslogic.util.toDateFormatted
 import eu.europa.ec.businesslogic.util.toLocalDate
 import eu.europa.ec.commonfeature.ui.document_details.model.DocumentJsonKeys
-import eu.europa.ec.corelogic.model.toDocumentIdentifier
+import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.eudi.wallet.document.ElementIdentifier
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import eu.europa.ec.eudi.wallet.document.nameSpacedDataJSONObject
+import eu.europa.ec.eudi.wallet.document.NameSpace
+import eu.europa.ec.eudi.wallet.document.format.MsoMdocData
+import eu.europa.ec.eudi.wallet.document.format.SdJwtVcData
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import org.json.JSONArray
-import org.json.JSONException
-import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 fun extractValueFromDocumentOrEmpty(
     document: IssuedDocument,
     key: String
 ): String {
-    return try {
-        val documentIdentifier = document.toDocumentIdentifier()
-        val documentJsonObject =
-            document.nameSpacedDataJSONObject.get(documentIdentifier.nameSpace) as? JSONObject
-        return documentJsonObject?.getStringFromJsonOrEmpty(key) ?: ""
-    } catch (e: JSONException) {
-        ""
-    }
+    return document.data.claims
+        .firstOrNull { it.identifier == key }
+        ?.value
+        ?.toString()
+        ?: ""
 }
 
 fun extractFullNameFromDocumentOrEmpty(document: IssuedDocument): String {
@@ -70,6 +69,14 @@ fun keyIsBase64(key: String): Boolean {
     return listOfBase64Keys.contains(key)
 }
 
+fun keyIsPortrait(key: String): Boolean {
+    return key == DocumentJsonKeys.PORTRAIT
+}
+
+fun keyIsSignature(key: String): Boolean {
+    return key == DocumentJsonKeys.SIGNATURE
+}
+
 private fun keyIsUserPseudonym(key: String): Boolean {
     return key == DocumentJsonKeys.USER_PSEUDONYM
 }
@@ -85,7 +92,7 @@ private fun getGenderValue(value: String, resourceProvider: ResourceProvider): S
             resourceProvider.getString(R.string.request_gender_male)
         }
 
-        "0" -> {
+        "2" -> {
             resourceProvider.getString(R.string.request_gender_female)
         }
 
@@ -95,46 +102,48 @@ private fun getGenderValue(value: String, resourceProvider: ResourceProvider): S
     }
 
 fun parseKeyValueUi(
-    json: Any,
+    item: Any,
     groupIdentifier: String,
+    groupIdentifierKey: String,
     keyIdentifier: String = "",
     resourceProvider: ResourceProvider,
     allItems: StringBuilder
 ) {
-    when (json) {
-        is JSONObject -> {
-            val keys = json.keys()
-            while (keys.hasNext()) {
+    when (item) {
 
-                val key = keys.next()
-                val value = json[key]
-
-                parseKeyValueUi(
-                    json = value,
-                    groupIdentifier = groupIdentifier,
-                    keyIdentifier = key,
-                    resourceProvider = resourceProvider,
-                    allItems = allItems
-                )
+        is Map<*, *> -> {
+            item.forEach { (key, value) ->
+                safeLet(key as? String, value) { key, value ->
+                    parseKeyValueUi(
+                        item = value,
+                        groupIdentifier = groupIdentifier,
+                        groupIdentifierKey = groupIdentifierKey,
+                        keyIdentifier = key,
+                        resourceProvider = resourceProvider,
+                        allItems = allItems
+                    )
+                }
             }
         }
 
-        is JSONArray -> {
-            for (i in 0 until json.length()) {
-                val value = json[i]
-                parseKeyValueUi(
-                    json = value,
-                    groupIdentifier = groupIdentifier,
-                    resourceProvider = resourceProvider,
-                    allItems = allItems
-                )
+        is Collection<*> -> {
+            item.forEach { value ->
+                value?.let {
+                    parseKeyValueUi(
+                        item = it,
+                        groupIdentifier = groupIdentifier,
+                        groupIdentifierKey = groupIdentifierKey,
+                        resourceProvider = resourceProvider,
+                        allItems = allItems
+                    )
+                }
             }
         }
 
         is Boolean -> {
             allItems.append(
                 resourceProvider.getString(
-                    if (json) {
+                    if (item) {
                         R.string.document_details_boolean_item_true_readable_value
                     } else {
                         R.string.document_details_boolean_item_false_readable_value
@@ -144,16 +153,16 @@ fun parseKeyValueUi(
         }
 
         else -> {
-            val date: String? = (json as? String)?.toDateFormatted()
+            val date: String? = (item as? String)?.toDateFormatted()
             allItems.append(
                 when {
 
-                    keyIsGender(groupIdentifier) -> {
-                        getGenderValue(json.toString(), resourceProvider)
+                    keyIsGender(groupIdentifierKey) -> {
+                        getGenderValue(item.toString(), resourceProvider)
                     }
 
-                    keyIsUserPseudonym(groupIdentifier) -> {
-                        json.toString().decodeFromBase64()
+                    keyIsUserPseudonym(groupIdentifierKey) -> {
+                        item.toString().decodeFromBase64()
                     }
 
                     date != null && keyIdentifier.isEmpty() -> {
@@ -161,14 +170,13 @@ fun parseKeyValueUi(
                     }
 
                     else -> {
-                        val jsonString = json.toString()
+                        val jsonString = item.toString()
                         if (keyIdentifier.isEmpty()) {
                             jsonString
                         } else {
                             val lineChange = if (allItems.isNotEmpty()) "\n" else ""
-                            val key = resourceProvider.getReadableElementIdentifier(keyIdentifier)
                             val value = jsonString.toDateFormatted() ?: jsonString
-                            "$lineChange$key: $value"
+                            "$lineChange$keyIdentifier: $value"
                         }
                     }
                 }
@@ -185,5 +193,36 @@ fun documentHasExpired(
 
     return localDateOfDocumentExpirationDate?.let {
         currentDate.isAfter(it)
-    } ?: false
+    } == true
 }
+
+fun documentHasExpired(
+    documentExpirationDate: Instant,
+    currentDate: LocalDate = LocalDate.now(),
+    zoneId: ZoneId = ZoneId.systemDefault()
+): Boolean {
+    return runCatching {
+        // Convert Instant to LocalDate using the provided ZoneId
+        val localDateOfDocumentExpiration = documentExpirationDate
+            .atZone(zoneId)
+            .toLocalDate()
+
+        // Check if the current date is after the document expiration date
+        currentDate.isAfter(localDateOfDocumentExpiration)
+    }.getOrElse {
+        // Default to false in case of any exception
+        false
+    }
+}
+
+val IssuedDocument.docNamespace: NameSpace?
+    get() = when (val data = this.data) {
+        is MsoMdocData -> data.nameSpaces.keys.first()
+        is SdJwtVcData -> null
+    }
+
+fun generateUniqueFieldId(
+    elementIdentifier: ElementIdentifier,
+    documentId: DocumentId,
+): String =
+    elementIdentifier + documentId

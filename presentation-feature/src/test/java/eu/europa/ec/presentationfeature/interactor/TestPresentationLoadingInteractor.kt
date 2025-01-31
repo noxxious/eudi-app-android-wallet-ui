@@ -23,6 +23,8 @@ import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.WalletCorePartialState
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
+import eu.europa.ec.corelogic.model.AuthenticationData
+import eu.europa.ec.testfeature.mockedNotifyOnAuthenticationFailure
 import eu.europa.ec.testfeature.mockedPlainFailureMessage
 import eu.europa.ec.testlogic.extension.runFlowTest
 import eu.europa.ec.testlogic.extension.runTest
@@ -179,10 +181,16 @@ class TestPresentationLoadingInteractor {
     fun `Given Case 4, When observeResponse is called, Then Case 4 Expected Result is returned`() {
         coroutineRule.runTest {
             // Given
+            val mockedAuthenticationData = listOf(
+                AuthenticationData(
+                    crypto = crypto,
+                    onAuthenticationSuccess = {}
+                )
+            )
+
             mockWalletCorePresentationControllerEventEmission(
                 event = WalletCorePartialState.UserAuthenticationRequired(
-                    crypto = crypto,
-                    resultHandler = DeviceAuthenticationResult()
+                    authenticationData = mockedAuthenticationData
                 )
             )
 
@@ -192,8 +200,7 @@ class TestPresentationLoadingInteractor {
                     // Then
                     TestCase.assertEquals(
                         PresentationLoadingObserveResponsePartialState.UserAuthenticationRequired(
-                            crypto = crypto,
-                            resultHandler = DeviceAuthenticationResult()
+                            authenticationData = mockedAuthenticationData
                         ),
                         awaitItem()
                     )
@@ -222,12 +229,18 @@ class TestPresentationLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
         // Then
         verify(deviceAuthenticationInteractor, times(1))
-            .authenticateWithBiometrics(context, crypto, resultHandler)
+            .authenticateWithBiometrics(
+                context,
+                crypto,
+                mockedNotifyOnAuthenticationFailure,
+                resultHandler
+            )
     }
 
     // Case 2:
@@ -235,7 +248,7 @@ class TestPresentationLoadingInteractor {
     // BiometricsAvailability.NonEnrolled
 
     // Case 2 Expected Result:
-    // deviceAuthenticationInteractor.authenticateWithBiometrics called once.
+    // deviceAuthenticationInteractor.launchBiometricSystemScreen called once.
     @Test
     fun `Given case 2, When handleUserAuthentication is called, Then Case 2 expected result is returned`() {
         // Given
@@ -247,12 +260,13 @@ class TestPresentationLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
         // Then
         verify(deviceAuthenticationInteractor, times(1))
-            .authenticateWithBiometrics(context, crypto, resultHandler)
+            .launchBiometricSystemScreen()
     }
 
     // Case 3:
@@ -278,6 +292,7 @@ class TestPresentationLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
@@ -285,33 +300,6 @@ class TestPresentationLoadingInteractor {
         verify(resultHandler, times(1))
             .onAuthenticationFailure
     }
-    //endregion
-
-    //region stopPresentation
-
-    @Test
-    fun `when interactor stopPresentation is called then it delegates to walletCoreInteractor stopPresentation`() {
-        // When
-        interactor.stopPresentation()
-
-        // Then
-        verify(walletCorePresentationController, times(1))
-            .stopPresentation()
-    }
-
-    //endregion
-
-    //region initiatorRoute
-
-    @Test
-    fun `when initiatorRoute on interactor is called then initiatorRoute on controller is expected to be invoked`() {
-        // When
-        interactor.initiatorRoute
-
-        //Then
-        verify(walletCorePresentationController).initiatorRoute
-    }
-
     //endregion
 
 

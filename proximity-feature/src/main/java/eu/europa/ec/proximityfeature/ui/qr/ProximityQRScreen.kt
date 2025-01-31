@@ -17,24 +17,21 @@
 package eu.europa.ec.proximityfeature.ui.qr
 
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -42,12 +39,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.proximityfeature.ui.qr.component.rememberQrBitmapPainter
 import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.theme.values.backgroundDefault
-import eu.europa.ec.resourceslogic.theme.values.textSecondaryDark
-import eu.europa.ec.resourceslogic.theme.values.topCorneredShapeSmall
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ContentTitle
@@ -56,11 +51,8 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
-import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_LARGE
-import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
-import eu.europa.ec.uilogic.component.utils.VSpacer
-import eu.europa.ec.uilogic.component.wrap.WrapIcon
+import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.navigation.ProximityScreens
 import kotlinx.coroutines.channels.Channel
@@ -74,12 +66,12 @@ fun ProximityQRScreen(
     navController: NavController,
     viewModel: ProximityQRViewModel
 ) {
-    val state = viewModel.viewState.value
+    val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     ContentScreen(
         isLoading = state.isLoading,
-        navigatableAction = ScreenNavigateAction.CANCELABLE,
+        navigatableAction = ScreenNavigateAction.BACKABLE,
         onBack = { viewModel.setEvent(Event.GoBack) },
         contentErrorConfig = state.error,
     ) { paddingValues ->
@@ -115,8 +107,8 @@ fun ProximityQRScreen(
     ) {
         viewModel.setEvent(
             Event.NfcEngagement(
-                context as ComponentActivity,
-                true
+                componentActivity = context as ComponentActivity,
+                enable = true
             )
         )
     }
@@ -127,8 +119,8 @@ fun ProximityQRScreen(
     ) {
         viewModel.setEvent(
             Event.NfcEngagement(
-                context as ComponentActivity,
-                false
+                componentActivity = context as ComponentActivity,
+                enable = false
             )
         )
     }
@@ -152,6 +144,7 @@ private fun Content(
                 .padding(paddingValues)
         ) {
             ContentTitle(
+                modifier = Modifier.fillMaxWidth(),
                 title = stringResource(id = R.string.proximity_qr_title),
                 subtitle = stringResource(id = R.string.proximity_qr_subtitle)
             )
@@ -168,7 +161,10 @@ private fun Content(
             }
         }
 
-        NFCSection()
+        Column {
+            HorizontalDivider()
+            NFCSection()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -186,24 +182,20 @@ private fun NFCSection() {
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .background(
-                color = MaterialTheme.colorScheme.backgroundDefault,
-                shape = MaterialTheme.shapes.topCorneredShapeSmall
-            )
-            .padding(vertical = SPACING_EXTRA_LARGE.dp, horizontal = SPACING_LARGE.dp),
-        verticalArrangement = Arrangement.Center,
+            .padding(all = SPACING_MEDIUM.dp),
+        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stringResource(id = R.string.proximity_qr_use_nfc),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.textSecondaryDark
+            color = MaterialTheme.colorScheme.onSurface
         )
-        VSpacer.Medium()
-        WrapIcon(
-            iconData = AppIcons.NFC,
-            modifier = Modifier.size(96.dp),
-            customTint = MaterialTheme.colorScheme.primary
+        WrapImage(iconData = AppIcons.NFC)
+        Text(
+            text = stringResource(id = R.string.proximity_qr_hold_near_reader),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -214,29 +206,14 @@ private fun QRCode(
     qrCode: String,
     qrSize: Dp
 ) {
-
-    val primaryPixelsColor = if (isSystemInDarkTheme()) {
-        Color.Black
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
-
-    val secondaryPixelsColor = if (isSystemInDarkTheme()) {
-        Color.White
-    } else {
-        MaterialTheme.colorScheme.background
-    }
-
     if (qrCode.isNotEmpty()) {
         WrapImage(
             modifier = modifier,
             painter = rememberQrBitmapPainter(
                 content = qrCode,
-                primaryPixelsColor = primaryPixelsColor.toArgb(),
-                secondaryPixelsColor = secondaryPixelsColor.toArgb(),
                 size = qrSize
             ),
-            contentDescription = stringResource(id = R.string.content_description_qr_code)
+            contentDescription = stringResource(id = R.string.content_description_qr_code_icon)
         )
     }
 }

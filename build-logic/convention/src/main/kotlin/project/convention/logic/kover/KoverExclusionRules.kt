@@ -18,9 +18,9 @@ package project.convention.logic.kover
 
 import project.convention.logic.config.LibraryModule
 
-private const val KOIN = "org.koin.*"
-private const val BUILD_CONFIG = "eu.europa.ec.*.BuildConfig"
-private const val SCREEN_COMPOSABLES = "eu.europa.ec.*.ui.*.*Screen*"
+private const val KOIN = "*.ksp.*"
+private const val BUILD_CONFIG = "*BuildConfig*"
+private const val SCREEN_COMPOSABLES = "*Screen*"
 private const val MODELS = "eu.europa.ec.*.model"
 private const val DI = "eu.europa.ec.*.di"
 private const val ROUTER_GRAPH = "eu.europa.ec.*.router"
@@ -30,7 +30,6 @@ val koverModules: Map<LibraryModule, KoverExclusionRules> = mapOf(
     LibraryModule.UiLogic to KoverExclusionRules.UiLogic,
     LibraryModule.CommonFeature to KoverExclusionRules.CommonFeature,
     LibraryModule.StartupFeature to KoverExclusionRules.StartupFeature,
-    LibraryModule.LoginFeature to KoverExclusionRules.LoginFeature,
     LibraryModule.DashboardFeature to KoverExclusionRules.DashboardFeature,
     LibraryModule.PresentationFeature to KoverExclusionRules.PresentationFeature,
     LibraryModule.ProximityFeature to KoverExclusionRules.ProximityFeature,
@@ -40,13 +39,13 @@ val koverModules: Map<LibraryModule, KoverExclusionRules> = mapOf(
 sealed interface KoverExclusionRules {
     val commonClasses: List<String>
         get() = listOf(
-            KOIN,
             BUILD_CONFIG,
             SCREEN_COMPOSABLES,
         )
 
     val commonPackages: List<String>
         get() = listOf(
+            KOIN,
             DI,
             MODELS,
             ROUTER_GRAPH,
@@ -143,14 +142,6 @@ sealed interface KoverExclusionRules {
             get() = commonPackages
     }
 
-    object LoginFeature : FeatureModule {
-        override val classes: List<String>
-            get() = commonClasses
-
-        override val packages: List<String>
-            get() = commonPackages
-    }
-
     object DashboardFeature : FeatureModule {
         override val classes: List<String>
             get() = commonClasses
@@ -214,6 +205,16 @@ sealed interface KoverExclusionRules {
         override val packages: List<String>
             get() = commonPackages + listOf(
                 "eu.europa.ec.corelogic"
+            )
+    }
+
+    object StorageLogic : LogicModule {
+        override val classes: List<String>
+            get() = commonClasses
+
+        override val packages: List<String>
+            get() = commonPackages + listOf(
+                "eu.europa.ec.storagelogic"
             )
     }
 }

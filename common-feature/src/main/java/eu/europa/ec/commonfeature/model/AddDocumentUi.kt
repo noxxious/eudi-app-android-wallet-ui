@@ -16,12 +16,8 @@
 
 package eu.europa.ec.commonfeature.model
 
-import eu.europa.ec.corelogic.model.DocumentIdentifier
-import eu.europa.ec.uilogic.component.IconData
+import eu.europa.ec.uilogic.component.ListItemData
 
 data class DocumentOptionItemUi(
-    val text: String,
-    val icon: IconData,
-    val type: DocumentIdentifier,
-    val available: Boolean,
+    val itemData: ListItemData,
 )

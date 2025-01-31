@@ -24,6 +24,8 @@ import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.commonfeature.util.TestsData.mockedUriPath1
 import eu.europa.ec.corelogic.controller.WalletCorePartialState
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
+import eu.europa.ec.corelogic.model.AuthenticationData
+import eu.europa.ec.testfeature.mockedNotifyOnAuthenticationFailure
 import eu.europa.ec.testfeature.mockedPlainFailureMessage
 import eu.europa.ec.testlogic.extension.expectNoEvents
 import eu.europa.ec.testlogic.extension.runFlowTest
@@ -167,10 +169,17 @@ class TestProximityLoadingInteractor {
     @Test
     fun `Given Case 4, When observeResponse is called, Then Case 4 Expected Result is returned`() {
         coroutineRule.runTest {
+
+            val mockedAuthenticationData = listOf(
+                AuthenticationData(
+                    crypto = crypto,
+                    onAuthenticationSuccess = {}
+                )
+            )
+
             mockWalletCorePresentationControllerEventEmission(
                 event = WalletCorePartialState.UserAuthenticationRequired(
-                    crypto = crypto,
-                    resultHandler = resultHandler
+                    authenticationData = mockedAuthenticationData
                 )
             )
 
@@ -179,8 +188,7 @@ class TestProximityLoadingInteractor {
                 .runFlowTest {
                     val expectedResult =
                         ProximityLoadingObserveResponsePartialState.UserAuthenticationRequired(
-                            crypto = crypto,
-                            resultHandler = resultHandler
+                            authenticationData = mockedAuthenticationData
                         )
                     assertEquals(expectedResult, awaitItem())
                 }
@@ -207,12 +215,18 @@ class TestProximityLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
         // Then
         verify(deviceAuthenticationInteractor, times(1))
-            .authenticateWithBiometrics(context, crypto, resultHandler)
+            .authenticateWithBiometrics(
+                context,
+                crypto,
+                mockedNotifyOnAuthenticationFailure,
+                resultHandler
+            )
     }
 
     // Case 2:
@@ -220,7 +234,7 @@ class TestProximityLoadingInteractor {
     // BiometricsAvailability.NonEnrolled
 
     // Case 2 Expected Result:
-    // deviceAuthenticationInteractor.authenticateWithBiometrics called once.
+    // deviceAuthenticationInteractor.launchBiometricSystemScreen called once.
     @Test
     fun `Given case 2, When handleUserAuthentication is called, Then Case 2 expected result is returned`() {
         // Given
@@ -232,12 +246,13 @@ class TestProximityLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
         // Then
         verify(deviceAuthenticationInteractor, times(1))
-            .authenticateWithBiometrics(context, crypto, resultHandler)
+            .launchBiometricSystemScreen()
     }
 
     // Case 3:
@@ -262,40 +277,13 @@ class TestProximityLoadingInteractor {
         interactor.handleUserAuthentication(
             context = context,
             crypto = crypto,
+            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
             resultHandler = resultHandler
         )
 
         // Then
         verify(resultHandler, times(1))
             .onAuthenticationFailure
-    }
-
-    //endregion
-
-    //region stopPresentation
-
-    @Test
-    fun `when interactor stopPresentation is called then it delegates to walletCoreInteractor stopPresentation`() {
-        // When
-        interactor.stopPresentation()
-
-        // Then
-        verify(walletCorePresentationController, times(1))
-            .stopPresentation()
-    }
-
-    //endregion
-
-    //region verifierName
-
-    @Test
-    fun `when interactor verifierName is called, then verifierName should be invoked on the controller`() {
-        // When
-        interactor.verifierName
-
-        // Then
-        verify(walletCorePresentationController, times(1))
-            .verifierName
     }
 
     //endregion

@@ -197,13 +197,13 @@ The released software is an initial development release version:
 
 *core-logic*: Wallet core logic.
 
+*storage-logic*: Persistent storage cache.
+
 *authentication-logic*: Pin/Biometry Storage and System Biometrics Logic.
 
 *ui-logic*: Common UI components.
 
 *common-feature*: Code that is common to all features.
-
-*login-feature*: Login feature.
 
 *dashboard-feature*: The application main screen.
 
@@ -219,14 +219,12 @@ The released software is an initial development release version:
 ```mermaid
 graph TD;
   startup-feature --> assembly-logic
-  login-feature --> assembly-logic
   dashboard-feature --> assembly-logic
   presentation-feature --> assembly-logic
   proximity-feature --> assembly-logic
   issuance-feature --> assembly-logic
 
   common-feature --> startup-feature
-  common-feature --> login-feature
   common-feature --> dashboard-feature
   common-feature --> presentation-feature
   common-feature --> proximity-feature
@@ -238,7 +236,8 @@ graph TD;
   resources-logic -->common-feature
   analytics-logic -->common-feature 
   authentication-logic -->common-feature 
-  core-logic -->common-feature 
+  core-logic -->common-feature
+  storage-logic -->common-feature 
 
   business-logic -->core-logic
   resources-logic -->core-logic
@@ -249,6 +248,10 @@ graph TD;
   analytics-logic -->ui-logic
 
   business-logic -->network-logic
+  
+  business-logic -->storage-logic
+
+  resources-logic -->storage-logic
 
   resources-logic -->business-logic
 

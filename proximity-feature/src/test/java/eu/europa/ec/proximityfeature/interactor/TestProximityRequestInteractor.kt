@@ -18,31 +18,22 @@ package eu.europa.ec.proximityfeature.interactor
 
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
-import eu.europa.ec.commonfeature.ui.request.Event
-import eu.europa.ec.commonfeature.ui.request.model.RequestDataUi
-import eu.europa.ec.commonfeature.util.TestsData.createTransformedRequestDataUi
+import eu.europa.ec.commonfeature.ui.request.transformer.RequestTransformer
 import eu.europa.ec.commonfeature.util.TestsData.mockedRequestElementIdentifierNotAvailable
-import eu.europa.ec.commonfeature.util.TestsData.mockedRequestRequiredFieldsTitle
-import eu.europa.ec.commonfeature.util.TestsData.mockedTransformedRequestDataUiForMdlWithBasicFields
-import eu.europa.ec.commonfeature.util.TestsData.mockedTransformedRequestDataUiForPidWithBasicFields
 import eu.europa.ec.commonfeature.util.TestsData.mockedValidMdlWithBasicFieldsRequestDocument
 import eu.europa.ec.commonfeature.util.TestsData.mockedValidPidWithBasicFieldsRequestDocument
-import eu.europa.ec.commonfeature.util.TestsData.mockedValidReaderAuth
 import eu.europa.ec.commonfeature.util.TestsData.mockedVerifierName
 import eu.europa.ec.corelogic.controller.PresentationControllerConfig
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
-import eu.europa.ec.eudi.iso18013.transfer.DocRequest
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testfeature.MockResourceProviderForStringCalls.mockTransformToUiItemsCall
 import eu.europa.ec.testfeature.mockedExceptionWithMessage
 import eu.europa.ec.testfeature.mockedExceptionWithNoMessage
 import eu.europa.ec.testfeature.mockedGenericErrorMessage
 import eu.europa.ec.testfeature.mockedMdlWithBasicFields
-import eu.europa.ec.testfeature.mockedPidDocType
 import eu.europa.ec.testfeature.mockedPidWithBasicFields
 import eu.europa.ec.testfeature.mockedPlainFailureMessage
 import eu.europa.ec.testfeature.mockedVerifierIsTrusted
@@ -53,7 +44,9 @@ import eu.europa.ec.testlogic.extension.toFlow
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import junit.framework.TestCase.assertEquals
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -275,19 +268,12 @@ class TestProximityRequestInteractor {
     fun `Given Case 6, When getRequestDocuments is called, Then Case 6 Expected Result is returned`() {
         coroutineRule.runTest {
             // Given
-            whenever(resourceProvider.getString(R.string.request_required_fields_title))
-                .thenReturn(mockedRequestRequiredFieldsTitle)
-
             mockWalletCorePresentationControllerEventEmission(
                 event = TransferEventPartialState.RequestReceived(
                     requestData = listOf(
                         mockedValidPidWithBasicFieldsRequestDocument
                             .copy(
-                                docRequest = DocRequest(
-                                    docType = mockedPidDocType,
-                                    requestItems = emptyList(),
-                                    readerAuth = mockedValidReaderAuth
-                                )
+                                requestedItems = emptyMap()
                             )
                     ),
                     verifierName = mockedVerifierName,
@@ -329,8 +315,6 @@ class TestProximityRequestInteractor {
             mockGetAllIssuedDocumentsCall(
                 response = listOf(mockedPidWithBasicFields)
             )
-            whenever(resourceProvider.getString(R.string.request_required_fields_title))
-                .thenReturn(mockedRequestRequiredFieldsTitle)
             mockTransformToUiItemsCall(
                 resourceProvider = resourceProvider,
                 notAvailableString = mockedRequestElementIdentifierNotAvailable
@@ -349,15 +333,20 @@ class TestProximityRequestInteractor {
             // When
             interactor.getRequestDocuments()
                 .runFlowTest {
+                    val requestDataUi = RequestTransformer.transformToDomainItems(
+                        storageDocuments = listOf(mockedPidWithBasicFields),
+                        requestDocuments = listOf(mockedValidPidWithBasicFieldsRequestDocument),
+                        resourceProvider = resourceProvider
+                    )
+
                     // Then
                     assertEquals(
                         ProximityRequestInteractorPartialState.Success(
                             verifierName = mockedVerifierName,
                             verifierIsTrusted = mockedVerifierIsTrusted,
-                            requestDocuments = createTransformedRequestDataUi(
-                                items = listOf(
-                                    mockedTransformedRequestDataUiForPidWithBasicFields
-                                )
+                            requestDocuments = RequestTransformer.transformToUiItems(
+                                documentsDomain = requestDataUi.getOrThrow(),
+                                resourceProvider = resourceProvider,
                             )
                         ),
                         awaitItem()
@@ -385,8 +374,6 @@ class TestProximityRequestInteractor {
             mockGetAllIssuedDocumentsCall(
                 response = listOf(mockedMdlWithBasicFields)
             )
-            whenever(resourceProvider.getString(R.string.request_required_fields_title))
-                .thenReturn(mockedRequestRequiredFieldsTitle)
             mockTransformToUiItemsCall(
                 resourceProvider = resourceProvider,
                 notAvailableString = mockedRequestElementIdentifierNotAvailable
@@ -405,15 +392,20 @@ class TestProximityRequestInteractor {
             // When
             interactor.getRequestDocuments()
                 .runFlowTest {
+                    val requestDataUi = RequestTransformer.transformToDomainItems(
+                        storageDocuments = listOf(mockedMdlWithBasicFields),
+                        requestDocuments = listOf(mockedValidMdlWithBasicFieldsRequestDocument),
+                        resourceProvider = resourceProvider
+                    )
+
                     // Then
                     assertEquals(
                         ProximityRequestInteractorPartialState.Success(
                             verifierName = mockedVerifierName,
                             verifierIsTrusted = mockedVerifierIsTrusted,
-                            requestDocuments = createTransformedRequestDataUi(
-                                items = listOf(
-                                    mockedTransformedRequestDataUiForMdlWithBasicFields
-                                )
+                            requestDocuments = RequestTransformer.transformToUiItems(
+                                documentsDomain = requestDataUi.getOrThrow(),
+                                resourceProvider = resourceProvider,
                             )
                         ),
                         awaitItem()
@@ -444,8 +436,6 @@ class TestProximityRequestInteractor {
                     mockedPidWithBasicFields
                 )
             )
-            whenever(resourceProvider.getString(R.string.request_required_fields_title))
-                .thenReturn(mockedRequestRequiredFieldsTitle)
             mockTransformToUiItemsCall(
                 resourceProvider = resourceProvider,
                 notAvailableString = mockedRequestElementIdentifierNotAvailable
@@ -465,16 +455,26 @@ class TestProximityRequestInteractor {
             // When
             interactor.getRequestDocuments()
                 .runFlowTest {
+                    val requestDataUi = RequestTransformer.transformToDomainItems(
+                        storageDocuments = listOf(
+                            mockedMdlWithBasicFields,
+                            mockedPidWithBasicFields
+                        ),
+                        requestDocuments = listOf(
+                            mockedValidMdlWithBasicFieldsRequestDocument,
+                            mockedValidPidWithBasicFieldsRequestDocument
+                        ),
+                        resourceProvider = resourceProvider
+                    )
+
                     // Then
                     assertEquals(
                         ProximityRequestInteractorPartialState.Success(
                             verifierName = mockedVerifierName,
                             verifierIsTrusted = mockedVerifierIsTrusted,
-                            requestDocuments = createTransformedRequestDataUi(
-                                items = listOf(
-                                    mockedTransformedRequestDataUiForMdlWithBasicFields,
-                                    mockedTransformedRequestDataUiForPidWithBasicFields
-                                )
+                            requestDocuments = RequestTransformer.transformToUiItems(
+                                documentsDomain = requestDataUi.getOrThrow(),
+                                resourceProvider = resourceProvider,
                             )
                         ),
                         awaitItem()
@@ -505,8 +505,6 @@ class TestProximityRequestInteractor {
                     mockedMdlWithBasicFields
                 )
             )
-            whenever(resourceProvider.getString(R.string.request_required_fields_title))
-                .thenReturn(mockedRequestRequiredFieldsTitle)
             mockTransformToUiItemsCall(
                 resourceProvider = resourceProvider,
                 notAvailableString = mockedRequestElementIdentifierNotAvailable
@@ -526,16 +524,26 @@ class TestProximityRequestInteractor {
             // When
             interactor.getRequestDocuments()
                 .runFlowTest {
+                    val requestDataUi = RequestTransformer.transformToDomainItems(
+                        storageDocuments = listOf(
+                            mockedPidWithBasicFields,
+                            mockedMdlWithBasicFields
+                        ),
+                        requestDocuments = listOf(
+                            mockedValidPidWithBasicFieldsRequestDocument,
+                            mockedValidMdlWithBasicFieldsRequestDocument
+                        ),
+                        resourceProvider = resourceProvider
+                    )
+
                     // Then
                     assertEquals(
                         ProximityRequestInteractorPartialState.Success(
                             verifierName = mockedVerifierName,
                             verifierIsTrusted = mockedVerifierIsTrusted,
-                            requestDocuments = createTransformedRequestDataUi(
-                                items = listOf(
-                                    mockedTransformedRequestDataUiForPidWithBasicFields,
-                                    mockedTransformedRequestDataUiForMdlWithBasicFields
-                                )
+                            requestDocuments = RequestTransformer.transformToUiItems(
+                                documentsDomain = requestDataUi.getOrThrow(),
+                                resourceProvider = resourceProvider,
                             )
                         ),
                         awaitItem()
@@ -640,13 +648,7 @@ class TestProximityRequestInteractor {
     //region updateRequestedDocuments
     @Test
     fun `Verify that updateRequestedDocuments calls walletCorePresentationController#updateRequestedDocuments`() {
-        val uiItems: List<RequestDataUi<Event>> = createTransformedRequestDataUi(
-            items = listOf(
-                mockedTransformedRequestDataUiForMdlWithBasicFields
-            )
-        )
-
-        interactor.updateRequestedDocuments(items = uiItems)
+        interactor.updateRequestedDocuments(items = emptyList())
 
         verify(walletCorePresentationController, times(1))
             .updateRequestedDocuments(disclosedDocuments = any())
@@ -696,13 +698,13 @@ class TestProximityRequestInteractor {
     private fun mockEmissionOfIntentionallyNotHandledEvents() {
         whenever(walletCorePresentationController.events)
             .thenReturn(
-                flowOf(
-                    TransferEventPartialState.Connected,
-                    TransferEventPartialState.Connecting,
-                    TransferEventPartialState.QrEngagementReady(""),
-                    TransferEventPartialState.Redirect(uri = URI("")),
-                    TransferEventPartialState.ResponseSent,
-                )
+                flow {
+                    emit(TransferEventPartialState.Connected)
+                    emit(TransferEventPartialState.Connecting)
+                    emit(TransferEventPartialState.QrEngagementReady(""))
+                    emit(TransferEventPartialState.Redirect(uri = URI("")))
+                    emit(TransferEventPartialState.ResponseSent)
+                }.shareIn(coroutineRule.testScope, SharingStarted.Lazily, 2)
             )
     }
 

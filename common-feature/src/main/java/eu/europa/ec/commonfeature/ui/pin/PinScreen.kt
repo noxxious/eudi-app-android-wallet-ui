@@ -17,35 +17,47 @@
 package eu.europa.ec.commonfeature.ui.pin
 
 import android.content.Context
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.uilogic.component.AppIconAndText
+import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.content.ContentScreen
-import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
-import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
+import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.component.wrap.BottomSheetTextData
+import eu.europa.ec.uilogic.component.wrap.ButtonConfig
+import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
+import eu.europa.ec.uilogic.component.wrap.StickyBottomConfig
+import eu.europa.ec.uilogic.component.wrap.StickyBottomType
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapPinTextField
-import eu.europa.ec.uilogic.component.wrap.WrapPrimaryButton
+import eu.europa.ec.uilogic.component.wrap.WrapStickyBottomContent
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +74,7 @@ fun PinScreen(
     navController: NavController,
     viewModel: PinViewModel,
 ) {
-    val state = viewModel.viewState.value
+    val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val isBottomSheetOpen = state.isBottomSheetOpen
@@ -75,24 +87,29 @@ fun PinScreen(
         isLoading = state.isLoading,
         navigatableAction = state.action,
         onBack = { viewModel.setEvent(state.onBackEvent) },
-        stickyBottom = {
-            WrapPrimaryButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state.isButtonEnabled,
-                onClick = {
-                    viewModel.setEvent(
-                        Event.NextButtonPressed(
-                            pin = state.pin
+        stickyBottom = { paddingValues ->
+            WrapStickyBottomContent(
+                stickyBottomModifier = Modifier
+                    .fillMaxWidth()
+                    .padding(paddingValues),
+                stickyBottomConfig = StickyBottomConfig(
+                    type = StickyBottomType.OneButton(
+                        config = ButtonConfig(
+                            type = ButtonType.PRIMARY,
+                            enabled = state.isButtonEnabled,
+                            onClick = {
+                                viewModel.setEvent(Event.NextButtonPressed(pin = state.pin))
+                            }
                         )
                     )
-                }
+                )
             ) {
                 Text(text = state.buttonText)
             }
         }
     ) { paddingValues ->
         Content(
-            state = viewModel.viewState.value,
+            state = state,
             effectFlow = viewModel.effect,
             onEventSend = { event -> viewModel.setEvent(event) },
             onNavigationRequested = { navigationEffect ->
@@ -165,23 +182,47 @@ private fun Content(
             .fillMaxSize()
             .padding(paddingValues)
     ) {
-        ContentTitle(
-            title = state.title,
-            subtitle = state.subtitle
+        AppIconAndText(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = SPACING_LARGE.dp),
+            appIconAndTextData = AppIconAndTextData(),
         )
 
-        VSpacer.Medium()
-
-        PinFieldLayout(
-            state = state,
-            onPinInput = { quickPin ->
-                onEventSend(
-                    Event.OnQuickPinEntered(
-                        quickPin
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = SPACING_LARGE.dp),
+            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
+        ) {
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-            }
-        )
+            )
+            Text(
+                text = state.subtitle,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = SPACING_LARGE.dp),
+            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
+        ) {
+            PinFieldLayout(
+                modifier = Modifier.fillMaxWidth(),
+                state = state,
+                onPinInput = { quickPin ->
+                    onEventSend(Event.OnQuickPinEntered(quickPin))
+                }
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -212,10 +253,12 @@ private fun SheetContent(
     onEventSent: (event: Event) -> Unit
 ) {
     DialogBottomSheet(
-        title = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_title),
-        message = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_subtitle),
-        positiveButtonText = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_primary_button_text),
-        negativeButtonText = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_secondary_button_text),
+        textData = BottomSheetTextData(
+            title = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_title),
+            message = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_subtitle),
+            positiveButtonText = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_primary_button_text),
+            negativeButtonText = stringResource(id = R.string.quick_pin_bottom_sheet_cancel_secondary_button_text),
+        ),
         onPositiveClick = { onEventSent(Event.BottomSheet.Cancel.PrimaryButtonPressed) },
         onNegativeClick = { onEventSent(Event.BottomSheet.Cancel.SecondaryButtonPressed) }
     )
@@ -223,18 +266,18 @@ private fun SheetContent(
 
 @Composable
 private fun PinFieldLayout(
+    modifier: Modifier = Modifier,
     state: State,
     onPinInput: (String) -> Unit,
 ) {
     WrapPinTextField(
-        onPinUpdate = {
-            onPinInput(it)
-        },
+        modifier = modifier,
+        onPinUpdate = onPinInput,
         length = state.quickPinSize,
         hasError = !state.quickPinError.isNullOrEmpty(),
         errorMessage = state.quickPinError,
         visualTransformation = PasswordVisualTransformation(),
-        pinWidth = 46.dp,
+        pinWidth = 42.dp,
         clearCode = state.resetPin,
         focusOnCreate = true
     )

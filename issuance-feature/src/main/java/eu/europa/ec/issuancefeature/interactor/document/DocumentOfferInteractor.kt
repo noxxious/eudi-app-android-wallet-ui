@@ -24,19 +24,22 @@ import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.util.safeLet
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
-import eu.europa.ec.commonfeature.model.toUiName
-import eu.europa.ec.commonfeature.ui.request.model.DocumentItemUi
 import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
 import eu.europa.ec.corelogic.controller.ResolveDocumentOfferPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.extension.documentIdentifier
+import eu.europa.ec.corelogic.extension.getIssuerLogo
+import eu.europa.ec.corelogic.extension.getIssuerName
+import eu.europa.ec.corelogic.extension.getName
 import eu.europa.ec.corelogic.model.DocumentIdentifier
-import eu.europa.ec.corelogic.model.isSupported
-import eu.europa.ec.corelogic.model.toDocumentIdentifier
-import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer.TxCodeSpec.InputMode
+import eu.europa.ec.eudi.openid4vci.TxCodeInputMode
+import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.issuancefeature.ui.document.offer.model.DocumentOfferItemUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.resourceslogic.theme.values.ThemeColors
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.utils.PERCENTAGE_25
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
@@ -45,21 +48,27 @@ import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import java.net.URI
 
 sealed class ResolveDocumentOfferInteractorPartialState {
     data class Success(
-        val documents: List<DocumentItemUi>,
+        val documents: List<DocumentOfferItemUi>,
         val issuerName: String,
+        val issuerLogo: URI?,
         val txCodeLength: Int?
     ) : ResolveDocumentOfferInteractorPartialState()
 
-    data class NoDocument(val issuerName: String) : ResolveDocumentOfferInteractorPartialState()
+    data class NoDocument(
+        val issuerName: String,
+        val issuerLogo: URI?,
+    ) : ResolveDocumentOfferInteractorPartialState()
+
     data class Failure(val errorMessage: String) : ResolveDocumentOfferInteractorPartialState()
 }
 
 sealed class IssueDocumentsInteractorPartialState {
     data class Success(
-        val successRoute: String,
+        val documentIds: List<DocumentId>,
     ) : IssueDocumentsInteractorPartialState()
 
     data class DeferredSuccess(
@@ -87,6 +96,7 @@ interface DocumentOfferInteractor {
     fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult
     )
 
@@ -99,6 +109,7 @@ class DocumentOfferInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer
 ) : DocumentOfferInteractor {
+
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
@@ -115,7 +126,14 @@ class DocumentOfferInteractorImpl(
                     is ResolveDocumentOfferPartialState.Success -> {
                         val offerHasNoDocuments = response.offer.offeredDocuments.isEmpty()
                         if (offerHasNoDocuments) {
-                            ResolveDocumentOfferInteractorPartialState.NoDocument(issuerName = response.offer.issuerName)
+                            ResolveDocumentOfferInteractorPartialState.NoDocument(
+                                issuerName = response.offer.getIssuerName(
+                                    resourceProvider.getLocale()
+                                ),
+                                issuerLogo = response.offer.getIssuerLogo(
+                                    resourceProvider.getLocale()
+                                ),
+                            )
                         } else {
 
                             val codeMinLength = 4
@@ -126,7 +144,7 @@ class DocumentOfferInteractorImpl(
                                 response.offer.txCodeSpec?.length
                             ) { inputMode, length ->
 
-                                if ((length !in codeMinLength..codeMaxLength) || inputMode == InputMode.TEXT) {
+                                if ((length !in codeMinLength..codeMaxLength) || inputMode == TxCodeInputMode.TEXT) {
                                     return@map ResolveDocumentOfferInteractorPartialState.Failure(
                                         errorMessage = resourceProvider.getString(
                                             R.string.issuance_document_offer_error_invalid_txcode_format,
@@ -142,27 +160,24 @@ class DocumentOfferInteractorImpl(
 
                             val hasPidInOffer =
                                 response.offer.offeredDocuments.any { offeredDocument ->
-                                    offeredDocument.docType.toDocumentIdentifier() == DocumentIdentifier.PID
+                                    val id = offeredDocument.documentIdentifier
+                                    // TODO: Re-activate once SD-JWT PID Rule book is in place in ARF.
+                                    // id == DocumentIdentifier.MdocPid || id == DocumentIdentifier.SdJwtPid
+                                    id == DocumentIdentifier.MdocPid
                                 }
 
                             if (hasMainPid || hasPidInOffer) {
-                                val resolvedDocumentsNames =
-                                    response.offer.offeredDocuments.map { offeredDocument ->
-                                        if (offeredDocument.docType.toDocumentIdentifier()
-                                                .isSupported()
-                                        ) {
-                                            offeredDocument.docType.toDocumentIdentifier()
-                                                .toUiName(resourceProvider)
-                                        } else {
-                                            offeredDocument.name
-                                        }
-                                    }
 
                                 ResolveDocumentOfferInteractorPartialState.Success(
-                                    documents = resolvedDocumentsNames.map { documentName ->
-                                        DocumentItemUi(title = documentName)
+                                    documents = response.offer.offeredDocuments.map { offeredDocument ->
+                                        DocumentOfferItemUi(
+                                            title = offeredDocument.getName(
+                                                resourceProvider.getLocale()
+                                            ).orEmpty(),
+                                        )
                                     },
-                                    issuerName = response.offer.issuerName,
+                                    issuerName = response.offer.getIssuerName(resourceProvider.getLocale()),
+                                    issuerLogo = response.offer.getIssuerLogo(resourceProvider.getLocale()),
                                     txCodeLength = response.offer.txCodeSpec?.length
                                 )
                             } else {
@@ -201,43 +216,14 @@ class DocumentOfferInteractorImpl(
                     }
 
                     is IssueDocumentsPartialState.PartialSuccess -> {
-
-                        val nonIssuedDocsNames: String = response.nonIssuedDocuments.entries.map {
-                            if (it.key.toDocumentIdentifier().isSupported()) {
-                                it.key.toDocumentIdentifier().toUiName(resourceProvider)
-                            } else {
-                                it.value
-                            }
-                        }.joinToString(
-                            separator = ", ",
-                            transform = {
-                                it
-                            }
-                        )
-
                         IssueDocumentsInteractorPartialState.Success(
-                            successRoute = buildGenericSuccessRoute(
-                                type = IssuanceSuccessType.DEFAULT,
-                                subtitle = resourceProvider.getString(
-                                    R.string.issuance_document_offer_partial_success_subtitle,
-                                    issuerName,
-                                    nonIssuedDocsNames
-                                ),
-                                navigation = navigation
-                            )
+                            documentIds = response.documentIds
                         )
                     }
 
                     is IssueDocumentsPartialState.Success -> {
                         IssueDocumentsInteractorPartialState.Success(
-                            successRoute = buildGenericSuccessRoute(
-                                type = IssuanceSuccessType.DEFAULT,
-                                subtitle = resourceProvider.getString(
-                                    R.string.issuance_document_offer_success_subtitle,
-                                    issuerName
-                                ),
-                                navigation = navigation
-                            )
+                            documentIds = response.documentIds
                         )
                     }
 
@@ -250,10 +236,9 @@ class DocumentOfferInteractorImpl(
 
                     is IssueDocumentsPartialState.DeferredSuccess -> {
                         IssueDocumentsInteractorPartialState.DeferredSuccess(
-                            successRoute = buildGenericSuccessRoute(
-                                type = IssuanceSuccessType.DEFERRED,
-                                subtitle = resourceProvider.getString(
-                                    R.string.issuance_document_offer_deferred_success_subtitle,
+                            successRoute = buildGenericSuccessRouteForDeferred(
+                                description = resourceProvider.getString(
+                                    R.string.issuance_document_offer_deferred_success_description,
                                     issuerName
                                 ),
                                 navigation = navigation
@@ -273,24 +258,22 @@ class DocumentOfferInteractorImpl(
     override fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult
     ) {
         deviceAuthenticationInteractor.getBiometricsAvailability {
             when (it) {
                 is BiometricsAvailability.CanAuthenticate -> {
                     deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
+                        context = context,
+                        crypto = crypto,
+                        notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                        resultHandler = resultHandler
                     )
                 }
 
                 is BiometricsAvailability.NonEnrolled -> {
-                    deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
-                    )
+                    deviceAuthenticationInteractor.launchBiometricSystemScreen()
                 }
 
                 is BiometricsAvailability.Failure -> {
@@ -304,63 +287,42 @@ class DocumentOfferInteractorImpl(
         walletCoreDocumentsController.resumeOpenId4VciWithAuthorization(uri)
     }
 
-    private enum class IssuanceSuccessType {
-        DEFAULT, DEFERRED
-    }
-
-    private fun buildGenericSuccessRoute(
-        type: IssuanceSuccessType,
-        subtitle: String,
+    private fun buildGenericSuccessRouteForDeferred(
+        description: String,
         navigation: ConfigNavigation
     ): String {
-        val successScreenArguments = getSuccessScreenArguments(type, subtitle, navigation)
+        val successScreenArguments = getDeferredSuccessScreenArguments(description, navigation)
         return generateComposableNavigationLink(
             screen = CommonScreens.Success,
             arguments = successScreenArguments
         )
     }
 
-    private fun getSuccessScreenArguments(
-        type: IssuanceSuccessType,
-        subtitle: String,
+    private fun getDeferredSuccessScreenArguments(
+        description: String,
         navigation: ConfigNavigation
     ): String {
-        val (headerConfig, imageConfig, buttonText) = when (type) {
-            IssuanceSuccessType.DEFAULT -> Triple(
-                first = SuccessUIConfig.HeaderConfig(
-                    title = resourceProvider.getString(R.string.issuance_document_offer_success_title),
-                    color = ThemeColors.success
+        val (textElementsConfig, imageConfig, buttonText) = Triple(
+            first = SuccessUIConfig.TextElementsConfig(
+                text = resourceProvider.getString(R.string.issuance_document_offer_deferred_success_text),
+                description = description,
+                color = ThemeColors.pending
+            ),
+            second = SuccessUIConfig.ImageConfig(
+                type = SuccessUIConfig.ImageConfig.Type.Drawable(
+                    icon = AppIcons.InProgress,
                 ),
-                second = SuccessUIConfig.ImageConfig(
-                    type = SuccessUIConfig.ImageConfig.Type.DEFAULT,
-                    drawableRes = null,
-                    tint = ThemeColors.success,
-                    contentDescription = resourceProvider.getString(R.string.content_description_success)
-                ),
-                third = resourceProvider.getString(R.string.issuance_document_offer_success_primary_button_text)
-            )
-
-            IssuanceSuccessType.DEFERRED -> Triple(
-                first = SuccessUIConfig.HeaderConfig(
-                    title = resourceProvider.getString(R.string.issuance_document_offer_deferred_success_title),
-                    color = ThemeColors.warning
-                ),
-                second = SuccessUIConfig.ImageConfig(
-                    type = SuccessUIConfig.ImageConfig.Type.DRAWABLE,
-                    drawableRes = AppIcons.ClockTimer.resourceId,
-                    tint = ThemeColors.warning,
-                    contentDescription = resourceProvider.getString(AppIcons.ClockTimer.contentDescriptionId)
-                ),
-                third = resourceProvider.getString(R.string.issuance_document_offer_deferred_success_primary_button_text)
-            )
-        }
+                tint = ThemeColors.primary,
+                screenPercentageSize = PERCENTAGE_25,
+            ),
+            third = resourceProvider.getString(R.string.issuance_document_offer_deferred_success_primary_button_text)
+        )
 
         return generateComposableArguments(
             mapOf(
                 SuccessUIConfig.serializedKeyName to uiSerializer.toBase64(
                     SuccessUIConfig(
-                        headerConfig = headerConfig,
-                        content = subtitle,
+                        textElementsConfig = textElementsConfig,
                         imageConfig = imageConfig,
                         buttonConfig = listOf(
                             SuccessUIConfig.ButtonConfig(

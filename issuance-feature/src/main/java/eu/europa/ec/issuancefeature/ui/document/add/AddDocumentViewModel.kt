@@ -21,18 +21,14 @@ import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
+import eu.europa.ec.commonfeature.config.IssuanceSuccessUiConfig
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
-import eu.europa.ec.commonfeature.config.QrScanFlow
-import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.model.DocumentOptionItemUi
-import eu.europa.ec.corelogic.controller.AddSampleDataPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
 import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
-import eu.europa.ec.corelogic.model.DocType
-import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.issuancefeature.interactor.document.AddDocumentInteractor
 import eu.europa.ec.issuancefeature.interactor.document.AddDocumentInteractorPartialState
 import eu.europa.ec.resourceslogic.R
@@ -45,7 +41,6 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
-import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
@@ -66,6 +61,7 @@ data class State(
     val isLoading: Boolean = false,
     val error: ContentErrorConfig? = null,
     val isInitialised: Boolean = false,
+    val notifyOnAuthenticationFailure: Boolean = false,
 
     val title: String = "",
     val subtitle: String = "",
@@ -82,11 +78,9 @@ sealed class Event : ViewEvent {
     data object DismissError : Event()
     data class IssueDocument(
         val issuanceMethod: IssuanceMethod,
-        val documentType: DocType,
+        val configId: String,
         val context: Context
     ) : Event()
-
-    data object GoToQrScan : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -132,20 +126,14 @@ class AddDocumentViewModel(
             }
 
             is Event.IssueDocument -> {
-                if (event.documentType != DocumentIdentifier.SAMPLE.docType) {
-                    issueDocument(
-                        issuanceMethod = event.issuanceMethod,
-                        docType = event.documentType,
-                        context = event.context
-                    )
-                } else {
-                    loadSampleData(event)
-                }
+                issueDocument(
+                    issuanceMethod = event.issuanceMethod,
+                    configId = event.configId,
+                    context = event.context
+                )
             }
 
             is Event.Finish -> setEffect { Effect.Navigation.Finish }
-
-            is Event.GoToQrScan -> navigateToQrScanScreen()
 
             is Event.OnPause -> {
                 if (viewState.value.isInitialised) {
@@ -232,7 +220,7 @@ class AddDocumentViewModel(
 
     private fun issueDocument(
         issuanceMethod: IssuanceMethod,
-        docType: DocType,
+        configId: String,
         context: Context
     ) {
         issuanceJob?.cancel()
@@ -247,7 +235,7 @@ class AddDocumentViewModel(
 
             addDocumentInteractor.issueDocument(
                 issuanceMethod = issuanceMethod,
-                documentType = docType
+                configId = configId
             ).collect { response ->
                 when (response) {
                     is IssueDocumentPartialState.Failure -> {
@@ -270,7 +258,7 @@ class AddDocumentViewModel(
                                 isLoading = false
                             )
                         }
-                        navigateToIssuanceSuccessScreen(
+                        navigateToDocumentIssuanceSuccessScreen(
                             documentId = response.documentId
                         )
                     }
@@ -293,12 +281,10 @@ class AddDocumentViewModel(
                         addDocumentInteractor.handleUserAuth(
                             context = context,
                             crypto = response.crypto,
+                            notifyOnAuthenticationFailure = viewState.value.notifyOnAuthenticationFailure,
                             resultHandler = DeviceAuthenticationResult(
                                 onAuthenticationSuccess = {
                                     response.resultHandler.onAuthenticationSuccess()
-                                },
-                                onAuthenticationFailure = {
-                                    response.resultHandler.onAuthenticationFailure()
                                 },
                                 onAuthenticationError = {
                                     response.resultHandler.onAuthenticationError()
@@ -311,52 +297,35 @@ class AddDocumentViewModel(
         }
     }
 
-    private fun loadSampleData(event: Event) {
-        setState {
-            copy(
-                isLoading = true
+    private fun navigateToDocumentIssuanceSuccessScreen(documentId: String) {
+        val onSuccessNavigation = when (flowType) {
+            IssuanceFlowUiConfig.NO_DOCUMENT -> ConfigNavigation(
+                navigationType = NavigationType.PushScreen(
+                    screen = DashboardScreens.Dashboard,
+                    popUpToScreen = IssuanceScreens.AddDocument
+                )
+            )
+
+            IssuanceFlowUiConfig.EXTRA_DOCUMENT -> ConfigNavigation(
+                navigationType = NavigationType.PopTo(
+                    screen = DashboardScreens.Dashboard
+                )
             )
         }
 
-        viewModelScope.launch {
-            addDocumentInteractor.addSampleData().collect { response ->
-                when (response) {
-                    is AddSampleDataPartialState.Failure -> {
-                        setState {
-                            copy(
-                                error = ContentErrorConfig(
-                                    onRetry = { setEvent(event) },
-                                    errorSubTitle = response.error,
-                                    onCancel = { setEvent(Event.DismissError) }
-                                ),
-                                isLoading = false
-                            )
-                        }
-                    }
-
-                    is AddSampleDataPartialState.Success -> {
-                        setState {
-                            copy(
-                                error = null,
-                                isLoading = false
-                            )
-                        }
-                        navigateToDashboardScreen()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun navigateToIssuanceSuccessScreen(documentId: String) {
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = generateComposableNavigationLink(
-                    screen = IssuanceScreens.Success,
+                    screen = IssuanceScreens.DocumentIssuanceSuccess,
                     arguments = generateComposableArguments(
                         mapOf(
-                            "flowType" to IssuanceFlowUiConfig.fromIssuanceFlowUiConfig(flowType),
-                            "documentId" to documentId,
+                            IssuanceSuccessUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                model = IssuanceSuccessUiConfig(
+                                    documentIds = listOf(documentId),
+                                    onSuccessNavigation = onSuccessNavigation,
+                                ),
+                                parser = IssuanceSuccessUiConfig.Parser
+                            ).orEmpty()
                         )
                     )
                 ),
@@ -374,42 +343,10 @@ class AddDocumentViewModel(
         }
     }
 
-    private fun navigateToDashboardScreen() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.Dashboard.screenRoute,
-                inclusive = true
-            )
-        }
-    }
-
-    private fun navigateToQrScanScreen() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = generateComposableNavigationLink(
-                    screen = CommonScreens.QrScan,
-                    arguments = generateComposableArguments(
-                        mapOf(
-                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
-                                QrScanUiConfig(
-                                    title = resourceProvider.getString(R.string.issuance_qr_scan_title),
-                                    subTitle = resourceProvider.getString(R.string.issuance_qr_scan_subtitle),
-                                    qrScanFlow = QrScanFlow.Issuance(flowType)
-                                ),
-                                QrScanUiConfig.Parser
-                            )
-                        )
-                    )
-                ),
-                inclusive = false
-            )
-        }
-    }
-
     private fun getNavigatableAction(flowType: IssuanceFlowUiConfig): ScreenNavigateAction {
         return when (flowType) {
             IssuanceFlowUiConfig.NO_DOCUMENT -> ScreenNavigateAction.NONE
-            IssuanceFlowUiConfig.EXTRA_DOCUMENT -> ScreenNavigateAction.CANCELABLE
+            IssuanceFlowUiConfig.EXTRA_DOCUMENT -> ScreenNavigateAction.BACKABLE
         }
     }
 

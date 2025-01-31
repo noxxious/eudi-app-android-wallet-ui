@@ -40,14 +40,18 @@ const val PRESENTATION_SCOPE_ID = "presentation_scope_id"
 class LogicCoreModule
 
 @Single
-fun provideEudiWalletCore(): EudiWallet = EudiWallet
+fun provideEudiWallet(
+    context: Context,
+    walletCoreConfig: WalletCoreConfig,
+    walletCoreLogController: WalletCoreLogController
+): EudiWallet = EudiWallet(context, walletCoreConfig.config) {
+    withLogger(walletCoreLogController)
+}
 
 @Single
-fun provideConfigWalletCore(
+fun provideWalletCoreConfig(
     context: Context,
-    walletCoreLogController: WalletCoreLogController
-): WalletCoreConfig =
-    WalletCoreConfigImpl(context, walletCoreLogController)
+): WalletCoreConfig = WalletCoreConfigImpl(context)
 
 @Single
 fun provideWalletCoreLogController(logController: LogController): WalletCoreLogController =
@@ -56,7 +60,7 @@ fun provideWalletCoreLogController(logController: LogController): WalletCoreLogC
 @Factory
 fun provideWalletCoreDocumentsController(
     resourceProvider: ResourceProvider,
-    eudiWallet: EudiWallet,
+    eudiWallet: EudiWallet
 ): WalletCoreDocumentsController =
     WalletCoreDocumentsControllerImpl(
         resourceProvider,

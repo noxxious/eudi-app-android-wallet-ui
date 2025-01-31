@@ -16,8 +16,13 @@
 
 package eu.europa.ec.testfeature
 
+import com.android.identity.document.NameSpacedData
+import com.android.identity.securearea.software.SoftwareSecureArea
+import com.android.identity.storage.EphemeralStorageEngine
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.eudi.wallet.document.UnsignedDocument
+import eu.europa.ec.eudi.wallet.document.format.MsoMdocData
+import eu.europa.ec.eudi.wallet.document.format.MsoMdocFormat
 import java.time.Instant
 
 const val mockedGenericErrorMessage = "resourceProvider's genericErrorMessage"
@@ -33,7 +38,9 @@ const val mockedPidId = "000001"
 const val mockedMdlId = "000002"
 const val mockedPidDocName = "EU PID"
 const val mockedMdlDocName = "mDL"
+const val mockedBookmarkId = "mockedBookmarkId"
 const val mockedVerifierIsTrusted = true
+const val mockedNotifyOnAuthenticationFailure = false
 val mockedPidFields: Map<String, ByteArray> = mapOf(
     "family_name" to byteArrayOf(105, 65, 78, 68, 69, 82, 83, 83, 79, 78),
     "given_name" to byteArrayOf(99, 74, 65, 78),
@@ -651,34 +658,63 @@ const val mockedPidNameSpace = "eu.europa.ec.eudi.pid.1"
 const val mockedMdlDocType = "org.iso.18013.5.1.mDL"
 const val mockedMdlNameSpace = "org.iso.18013.5.1"
 
+val secureArea = SoftwareSecureArea(EphemeralStorageEngine())
+
+fun createMockedNamespaceData(
+    documentNamespace: String,
+    nameSpacedData: Map<String, ByteArray>,
+): NameSpacedData {
+    val builder = NameSpacedData.Builder()
+    nameSpacedData.forEach {
+        builder.putEntry(documentNamespace, it.key, it.value)
+    }
+    return builder.build()
+}
+
 val mockedFullPid = IssuedDocument(
     id = mockedPidId,
-    docType = mockedPidDocType,
     name = mockedPidDocName,
-    usesStrongBox = false,
+    documentManagerId = "fabulas",
+    isCertified = false,
+    keyAlias = "massa",
+    secureArea = secureArea,
     createdAt = Instant.parse(mockedDocumentCreationDate),
     issuedAt = Instant.parse(mockedDocumentCreationDate),
-    requiresUserAuth = false,
-    nameSpacedData = mapOf(
-        mockedPidNameSpace to mockedPidFields
+    validFrom = Instant.now(),
+    validUntil = Instant.now(),
+    issuerProvidedData = byteArrayOf(),
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedPidNameSpace),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedPidNameSpace,
+            mockedPidFields
+        )
     )
 )
 
 val mockedUnsignedPid = UnsignedDocument(
     id = mockedPidId,
     name = mockedPidDocName,
-    docType = mockedPidDocType,
-    usesStrongBox = false,
-    requiresUserAuth = false,
     createdAt = Instant.parse(mockedDocumentCreationDate),
-    certificatesNeedAuth = listOf()
+    format = MsoMdocFormat(mockedPidDocType),
+    documentManagerId = "viderer",
+    isCertified = false,
+    keyAlias = "movet",
+    secureArea = secureArea,
+    metadata = null
 )
 
 val mockedMainPid = mockedFullPid
 
 val mockedPidWithBasicFields = mockedFullPid.copy(
-    nameSpacedData = mapOf(
-        mockedPidNameSpace to mockedPidBasicFields
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedPidNameSpace),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedPidNameSpace,
+            mockedPidBasicFields
+        )
     )
 )
 
@@ -688,44 +724,71 @@ val mockedOldestPidWithBasicFields = mockedPidWithBasicFields.copy(
 )
 
 val mockedEmptyPid = mockedFullPid.copy(
-    nameSpacedData = mapOf(
-        mockedPidNameSpace to emptyMap()
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedPidNameSpace),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedPidNameSpace,
+            emptyMap()
+        )
     )
 )
 
 val mockedFullMdl = IssuedDocument(
     id = mockedMdlId,
-    docType = mockedMdlDocType,
     name = mockedMdlDocName,
-    usesStrongBox = false,
+    documentManagerId = "fabulas",
+    isCertified = false,
+    keyAlias = "massa",
+    secureArea = secureArea,
     createdAt = Instant.parse(mockedDocumentCreationDate),
     issuedAt = Instant.parse(mockedDocumentCreationDate),
-    requiresUserAuth = false,
-    nameSpacedData = mapOf(
-        mockedMdlNameSpace to mockedMdlFields
+    validFrom = Instant.now(),
+    validUntil = Instant.now(),
+    issuerProvidedData = byteArrayOf(),
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedMdlDocType),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedMdlNameSpace,
+            mockedMdlFields
+        )
     )
 )
 
 val mockedMdlWithBasicFields = mockedFullMdl.copy(
-    nameSpacedData = mapOf(
-        mockedMdlNameSpace to mockedMdlBasicFields
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedMdlDocType),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedMdlNameSpace,
+            mockedMdlBasicFields
+        )
     )
 )
 
 val mockedMdlWithNoExpirationDate: IssuedDocument = mockedFullMdl.copy(
-    nameSpacedData = mapOf(
-        mockedMdlNameSpace to
-                mockedMdlFields
-                    .minus("expiry_date")
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedMdlDocType),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedMdlNameSpace,
+            mockedMdlFields
+                .minus("expiry_date"),
+        )
     )
 )
 
 val mockedMdlWithNoUserNameAndNoUserImage: IssuedDocument = mockedFullMdl.copy(
-    nameSpacedData = mapOf(
-        mockedMdlNameSpace to
-                mockedMdlFields
-                    .minus("given_name")
-                    .minus("portrait")
+    data = MsoMdocData(
+        format = MsoMdocFormat(mockedMdlDocType),
+        metadata = null,
+        nameSpacedData = createMockedNamespaceData(
+            mockedMdlNameSpace,
+            mockedMdlFields
+                .minus("given_name")
+                .minus("portrait")
+        )
     )
 )
 

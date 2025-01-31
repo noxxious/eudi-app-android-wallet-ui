@@ -16,18 +16,12 @@
 
 package eu.europa.ec.commonfeature.model
 
-import eu.europa.ec.commonfeature.ui.document_details.model.DocumentDetailsUi
 import eu.europa.ec.corelogic.model.DocumentIdentifier
-import eu.europa.ec.corelogic.model.isSupported
-import eu.europa.ec.corelogic.model.toDocumentIdentifier
-import eu.europa.ec.eudi.iso18013.transfer.RequestDocument
-import eu.europa.ec.eudi.wallet.document.Document
 import eu.europa.ec.eudi.wallet.document.DocumentId
-import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.uilogic.component.ListItemData
 
 enum class DocumentUiIssuanceState {
-    Issued, Pending, Failed
+    Issued, Pending, Failed, Expired
 }
 
 data class DocumentUi(
@@ -37,45 +31,7 @@ data class DocumentUi(
     val documentExpirationDateFormatted: String,
     val documentHasExpired: Boolean,
     val documentImage: String,
-    val documentDetails: List<DocumentDetailsUi>,
+    val documentDetails: List<ListItemData>,
     val userFullName: String? = null,
     val documentId: DocumentId,
 )
-
-fun DocumentIdentifier.toUiName(resourceProvider: ResourceProvider): String {
-    return when (this) {
-        is DocumentIdentifier.PID -> resourceProvider.getString(R.string.pid)
-        is DocumentIdentifier.MDL -> resourceProvider.getString(R.string.mdl)
-        is DocumentIdentifier.AGE -> resourceProvider.getString(R.string.age_verification)
-        is DocumentIdentifier.SAMPLE -> resourceProvider.getString(R.string.load_sample_data)
-        is DocumentIdentifier.PHOTOID -> resourceProvider.getString(R.string.photo_id)
-        is DocumentIdentifier.OTHER -> docType
-    }
-}
-
-fun Document.toUiName(resourceProvider: ResourceProvider): String {
-    val docIdentifier = this.toDocumentIdentifier()
-    return docIdentifier.toUiName(
-        fallbackDocName = this.name,
-        resourceProvider = resourceProvider
-    )
-}
-
-fun RequestDocument.toUiName(resourceProvider: ResourceProvider): String {
-    val docIdentifier = this.toDocumentIdentifier()
-    return docIdentifier.toUiName(
-        fallbackDocName = this.docName,
-        resourceProvider = resourceProvider
-    )
-}
-
-private fun DocumentIdentifier.toUiName(
-    fallbackDocName: String,
-    resourceProvider: ResourceProvider
-): String {
-    return if (this.isSupported()) {
-        this.toUiName(resourceProvider)
-    } else {
-        fallbackDocName
-    }
-}

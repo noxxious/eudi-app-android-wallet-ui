@@ -17,30 +17,56 @@
 package eu.europa.ec.issuancefeature.interactor.document
 
 import eu.europa.ec.businesslogic.extension.safeAsync
-import eu.europa.ec.commonfeature.model.DocumentUi
+import eu.europa.ec.commonfeature.ui.document_details.domain.DocumentDetailsDomain
 import eu.europa.ec.commonfeature.ui.document_details.transformer.DocumentDetailsTransformer
 import eu.europa.ec.corelogic.controller.DeleteAllDocumentsPartialState
 import eu.europa.ec.corelogic.controller.DeleteDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
+import eu.europa.ec.eudi.wallet.document.format.MsoMdocFormat
+import eu.europa.ec.eudi.wallet.document.format.SdJwtVcFormat
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.storagelogic.controller.BookmarkStorageController
+import eu.europa.ec.storagelogic.model.Bookmark
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import java.net.URI
 
 sealed class DocumentDetailsInteractorPartialState {
-    data class Success(val documentUi: DocumentUi) : DocumentDetailsInteractorPartialState()
+    data class Success(
+        val issuerName: String?,
+        val issuerLogo: URI?,
+        val documentDetailsDomain: DocumentDetailsDomain,
+        val documentIsBookmarked: Boolean,
+    ) : DocumentDetailsInteractorPartialState()
+
     data class Failure(val error: String) : DocumentDetailsInteractorPartialState()
 }
 
 sealed class DocumentDetailsInteractorDeleteDocumentPartialState {
     data object SingleDocumentDeleted : DocumentDetailsInteractorDeleteDocumentPartialState()
     data object AllDocumentsDeleted : DocumentDetailsInteractorDeleteDocumentPartialState()
-    data class Failure(val errorMessage: String) :
-        DocumentDetailsInteractorDeleteDocumentPartialState()
+    data class Failure(
+        val errorMessage: String
+    ) : DocumentDetailsInteractorDeleteDocumentPartialState()
+}
+
+sealed class DocumentDetailsInteractorStoreBookmarkPartialState {
+    data class Success(
+        val bookmarkId: String
+    ) : DocumentDetailsInteractorStoreBookmarkPartialState()
+
+    data object Failure : DocumentDetailsInteractorStoreBookmarkPartialState()
+}
+
+sealed class DocumentDetailsInteractorDeleteBookmarkPartialState {
+    data object Success : DocumentDetailsInteractorDeleteBookmarkPartialState()
+    data object Failure : DocumentDetailsInteractorDeleteBookmarkPartialState()
 }
 
 interface DocumentDetailsInteractor {
@@ -51,11 +77,20 @@ interface DocumentDetailsInteractor {
     fun deleteDocument(
         documentId: DocumentId
     ): Flow<DocumentDetailsInteractorDeleteDocumentPartialState>
+
+    fun storeBookmark(
+        bookmarkId: String
+    ): Flow<DocumentDetailsInteractorStoreBookmarkPartialState>
+
+    fun deleteBookmark(
+        bookmarkId: String
+    ): Flow<DocumentDetailsInteractorDeleteBookmarkPartialState>
 }
 
 class DocumentDetailsInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
-    private val resourceProvider: ResourceProvider,
+    private val bookmarkStorageController: BookmarkStorageController,
+    private val resourceProvider: ResourceProvider
 ) : DocumentDetailsInteractor {
 
     private val genericErrorMsg
@@ -65,20 +100,35 @@ class DocumentDetailsInteractorImpl(
         documentId: DocumentId,
     ): Flow<DocumentDetailsInteractorPartialState> =
         flow {
-            val document = walletCoreDocumentsController.getDocumentById(documentId = documentId)
-                    as? IssuedDocument
-            document?.let { issuedDocument ->
-                val itemUi = DocumentDetailsTransformer.transformToUiItem(
-                    document = issuedDocument,
-                    resourceProvider = resourceProvider,
-                )
-                itemUi?.let { documentUi ->
-                    emit(
-                        DocumentDetailsInteractorPartialState.Success(
-                            documentUi = documentUi
-                        )
+            val issuedDocument =
+                walletCoreDocumentsController.getDocumentById(documentId = documentId)
+                        as? IssuedDocument
+
+            issuedDocument?.let { safeIssuedDocument ->
+                val documentDetailsDomainResult =
+                    DocumentDetailsTransformer.transformToDocumentDetailsDomain(
+                        document = safeIssuedDocument,
+                        resourceProvider = resourceProvider
                     )
-                } ?: emit(DocumentDetailsInteractorPartialState.Failure(error = genericErrorMsg))
+
+                val documentDetailsDomain = documentDetailsDomainResult.getOrThrow()
+
+                val issuerName =
+                    safeIssuedDocument.localizedIssuerMetadata(resourceProvider.getLocale())?.name
+
+                val issuerLogo =
+                    safeIssuedDocument.localizedIssuerMetadata(resourceProvider.getLocale())?.logo
+
+                val documentIsBookmarked = bookmarkStorageController.retrieve(documentId) != null
+
+                emit(
+                    DocumentDetailsInteractorPartialState.Success(
+                        issuerName = issuerName,
+                        documentDetailsDomain = documentDetailsDomain,
+                        documentIsBookmarked = documentIsBookmarked,
+                        issuerLogo = issuerLogo?.uri
+                    )
+                )
             } ?: emit(DocumentDetailsInteractorPartialState.Failure(error = genericErrorMsg))
         }.safeAsync {
             DocumentDetailsInteractorPartialState.Failure(
@@ -91,12 +141,19 @@ class DocumentDetailsInteractorImpl(
     ): Flow<DocumentDetailsInteractorDeleteDocumentPartialState> =
         flow {
             val document = walletCoreDocumentsController.getDocumentById(documentId = documentId)
+            val format = document?.format
+            val docType = (format as? MsoMdocFormat)?.docType ?: (format as? SdJwtVcFormat)?.vct
+            val docIdentifier = docType?.toDocumentIdentifier()
 
             val shouldDeleteAllDocuments: Boolean =
-                if (document?.docType?.toDocumentIdentifier() == DocumentIdentifier.PID) {
+                if (docIdentifier == DocumentIdentifier.MdocPid || docIdentifier == DocumentIdentifier.SdJwtPid) {
 
-                    val allPidDocuments =
-                        walletCoreDocumentsController.getAllDocumentsByType(documentIdentifier = DocumentIdentifier.PID)
+                    val allPidDocuments = walletCoreDocumentsController.getAllDocumentsByType(
+                        documentIdentifiers = listOf(
+                            DocumentIdentifier.MdocPid,
+                            DocumentIdentifier.SdJwtPid
+                        )
+                    )
 
                     if (allPidDocuments.count() > 1) {
                         walletCoreDocumentsController.getMainPidDocument()?.id == documentId
@@ -135,5 +192,21 @@ class DocumentDetailsInteractorImpl(
             DocumentDetailsInteractorDeleteDocumentPartialState.Failure(
                 errorMessage = it.localizedMessage ?: genericErrorMsg
             )
+        }
+
+    override fun storeBookmark(bookmarkId: DocumentId): Flow<DocumentDetailsInteractorStoreBookmarkPartialState> =
+        flow {
+            bookmarkStorageController.store(Bookmark(identifier = bookmarkId))
+            emit(DocumentDetailsInteractorStoreBookmarkPartialState.Success(bookmarkId = bookmarkId))
+        }.safeAsync {
+            DocumentDetailsInteractorStoreBookmarkPartialState.Failure
+        }
+
+    override fun deleteBookmark(bookmarkId: DocumentId): Flow<DocumentDetailsInteractorDeleteBookmarkPartialState> =
+        flow {
+            bookmarkStorageController.delete(bookmarkId)
+            emit(DocumentDetailsInteractorDeleteBookmarkPartialState.Success)
+        }.safeAsync {
+            DocumentDetailsInteractorDeleteBookmarkPartialState.Failure
         }
 }

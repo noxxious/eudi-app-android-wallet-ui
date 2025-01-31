@@ -21,32 +21,38 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvai
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
+import eu.europa.ec.corelogic.controller.SendRequestedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.WalletCorePartialState
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
+import eu.europa.ec.corelogic.model.AuthenticationData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
 import java.net.URI
 
 sealed class PresentationLoadingObserveResponsePartialState {
     data class UserAuthenticationRequired(
-        val crypto: BiometricCrypto,
-        val resultHandler: DeviceAuthenticationResult
+        val authenticationData: List<AuthenticationData>,
     ) : PresentationLoadingObserveResponsePartialState()
 
     data class Failure(val error: String) : PresentationLoadingObserveResponsePartialState()
     data object Success : PresentationLoadingObserveResponsePartialState()
     data class Redirect(val uri: URI) : PresentationLoadingObserveResponsePartialState()
+    data object RequestReadyToBeSent : PresentationLoadingObserveResponsePartialState()
+}
+
+sealed class PresentationLoadingSendRequestedDocumentPartialState {
+    data class Failure(val error: String) : PresentationLoadingSendRequestedDocumentPartialState()
+    data object Success : PresentationLoadingSendRequestedDocumentPartialState()
 }
 
 interface PresentationLoadingInteractor {
-    val verifierName: String?
-    val initiatorRoute: String
-    fun stopPresentation()
     fun observeResponse(): Flow<PresentationLoadingObserveResponsePartialState>
+    fun sendRequestedDocuments(): PresentationLoadingSendRequestedDocumentPartialState
     fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
-        resultHandler: DeviceAuthenticationResult
+        notifyOnAuthenticationFailure: Boolean,
+        resultHandler: DeviceAuthenticationResult,
     )
 }
 
@@ -54,11 +60,6 @@ class PresentationLoadingInteractorImpl(
     private val walletCorePresentationController: WalletCorePresentationController,
     private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
 ) : PresentationLoadingInteractor {
-
-    override val verifierName: String? = walletCorePresentationController.verifierName
-
-    override val initiatorRoute: String =
-        walletCorePresentationController.initiatorRoute
 
     override fun observeResponse(): Flow<PresentationLoadingObserveResponsePartialState> =
         walletCorePresentationController.observeSentDocumentsRequest().mapNotNull { response ->
@@ -77,34 +78,42 @@ class PresentationLoadingInteractorImpl(
 
                 is WalletCorePartialState.UserAuthenticationRequired -> {
                     PresentationLoadingObserveResponsePartialState.UserAuthenticationRequired(
-                        response.crypto,
-                        response.resultHandler
+                        response.authenticationData
                     )
                 }
+
+                is WalletCorePartialState.RequestIsReadyToBeSent -> PresentationLoadingObserveResponsePartialState.RequestReadyToBeSent
             }
         }
+
+    override fun sendRequestedDocuments(): PresentationLoadingSendRequestedDocumentPartialState {
+        return when (val result = walletCorePresentationController.sendRequestedDocuments()) {
+            is SendRequestedDocumentsPartialState.RequestSent -> PresentationLoadingSendRequestedDocumentPartialState.Success
+            is SendRequestedDocumentsPartialState.Failure -> PresentationLoadingSendRequestedDocumentPartialState.Failure(
+                result.error
+            )
+        }
+    }
 
     override fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
-        resultHandler: DeviceAuthenticationResult
+        notifyOnAuthenticationFailure: Boolean,
+        resultHandler: DeviceAuthenticationResult,
     ) {
         deviceAuthenticationInteractor.getBiometricsAvailability {
             when (it) {
                 is BiometricsAvailability.CanAuthenticate -> {
                     deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
+                        context = context,
+                        crypto = crypto,
+                        notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                        resultHandler = resultHandler
                     )
                 }
 
                 is BiometricsAvailability.NonEnrolled -> {
-                    deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context,
-                        crypto,
-                        resultHandler
-                    )
+                    deviceAuthenticationInteractor.launchBiometricSystemScreen()
                 }
 
                 is BiometricsAvailability.Failure -> {
@@ -112,9 +121,5 @@ class PresentationLoadingInteractorImpl(
                 }
             }
         }
-    }
-
-    override fun stopPresentation() {
-        walletCorePresentationController.stopPresentation()
     }
 }
