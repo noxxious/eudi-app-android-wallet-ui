@@ -32,10 +32,10 @@ internal class WalletCoreConfigImpl(
 ) : WalletCoreConfig {
 
     private companion object {
-        const val OPENID4VP_VERIFIER_API_URI = "https://verifier-api.eudiw-lt.lengor.dev"
+        const val OPENID4VP_VERIFIER_API_URI = "https://verifier-api.eudiw-lt.lengor.dev/"
         const val OPENID4VP_VERIFIER_LEGAL_NAME = "LT Potential Test verifier"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
-        const val VCI_ISSUER_URL = "https://issuer.eudiw-lt.lengor.dev"
+        const val VCI_ISSUER_URL = "https://issuer.eudiw-lt.lengor.dev/"
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
     }
@@ -93,9 +93,7 @@ internal class WalletCoreConfigImpl(
                         withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                         withUseDPoPIfSupported(true)
                     }
-//                    configureReaderTrustStore(context, R.raw.eudi_pid_issuer_ut)
-//                    configureReaderTrustStore(context, R.raw.mdl_ds_0001_lt_dev_cert)
-                    configureReaderTrustStore(context, R.raw.pid_ds_0001_lt_dev_cert)
+                    configureReaderTrustStore(context, R.raw.eudi_pid_issuer_ut, R.raw.mdl_ds_0001_lt_dev_cert, R.raw.pid_ds_0001_lt_dev_cert)
                 }
             }
             return _config!!
