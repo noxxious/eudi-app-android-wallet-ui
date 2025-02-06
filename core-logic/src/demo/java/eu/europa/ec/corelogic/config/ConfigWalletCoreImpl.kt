@@ -93,7 +93,7 @@ internal class WalletCoreConfigImpl(
                         withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                         withUseDPoPIfSupported(true)
                     }
-                    configureReaderTrustStore(context, R.raw.eudi_pid_issuer_ut, R.raw.mdl_ds_0001_lt_dev_cert, R.raw.pid_ds_0001_lt_dev_cert, R.raw.potential_tollgate_verifier)
+                    configureReaderTrustStore(context, R.raw.eudi_pid_issuer_ut, R.raw.mdl_ds_0001_lt_dev_cert, R.raw.potential_tollgate_verifier, R.raw.slovenia_rp_verifier, R.raw.czechia_rp_verifier)
                 }
             }
             return _config!!

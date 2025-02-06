@@ -1,19 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-  ~ Copyright (c) 2023 European Commission
-  ~
-  ~ Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
-  ~ Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
-  ~ except in compliance with the Licence.
-  ~
-  ~ You may obtain a copy of the Licence at:
-  ~ https://joinup.ec.europa.eu/software/page/eupl
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software distributed under
-  ~ the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
-  ~ ANY KIND, either express or implied. See the Licence for the specific language
-  ~ governing permissions and limitations under the Licence.
-  -->
-
+<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">https://eu01.l.antigena.com/l/pyNlqtgk5WM2dWFrP7PQBkQXGr9XXY0CPXoCU4~~zUr8FyxDh3NIFDHEMJoKIDGnOtAOy1UzWinePWA0oJgFuVejipCXI8JlUCWXS8cN5I85GiffCynWDiEkbQUlitw3~sOSeXbO3JslhaXc2CQz2D-54Gy8 </domain>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">https://eu01.l.antigena.com/l/g7vS8cCk6CEwRBP9x94zy_0g2hAF8pGK5sR5VnW4HYA~~evxeHwEi6hQNh7Ig-Nu8359ZZv5CVn~CGGLLcbqoea0z6arnR3YS6mmGQ65wJab5plMcP4ZOQJSWXNW4cu_AWhJB2fxZl2rNt0yyftiGgFswn5 </domain>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">letsid.org</domain>
+    </domain-config>
+
+    <base-config cleartextTrafficPermitted="true" />
+
 </network-security-config>
