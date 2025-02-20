@@ -16,9 +16,11 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import eu.europa.ec.businesslogic.extension.compareLocaleLanguage
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.util.formatInstant
 import eu.europa.ec.commonfeature.model.DocumentUiIssuanceState
+import eu.europa.ec.commonfeature.ui.document_details.transformer.transformToDocumentDetailsDocumentItem
 import eu.europa.ec.commonfeature.util.documentHasExpired
 import eu.europa.ec.corelogic.controller.DeleteDocumentPartialState
 import eu.europa.ec.corelogic.controller.IssueDeferredDocumentPartialState
@@ -209,6 +211,21 @@ class DocumentsInteractorImpl(
                                 )
                             }
 
+                            val detailsDocumentItems = document.data.claims
+                                .map { claim ->
+                                    transformToDocumentDetailsDocumentItem(
+                                        displayKey = claim.metadata?.display?.firstOrNull {
+                                            resourceProvider.getLocale().compareLocaleLanguage(it.locale)
+                                        }?.name,
+                                        key = claim.identifier,
+                                        item = claim.value ?: "",
+                                        resourceProvider = resourceProvider,
+                                        documentId = document.id
+                                    )
+                                }
+                            val portraitItem = detailsDocumentItems.find { it.elementIdentifier == "portrait" }
+
+
                             FilterableDocumentItem(
                                 filterableAttributes = FilterableAttributes(
                                     issuedDate = document.issuedAt,
@@ -222,10 +239,11 @@ class DocumentsInteractorImpl(
                                         mainContentData = ListItemMainContentData.Text(text = document.name),
                                         overlineText = localizedIssuerMetadata?.name,
                                         supportingText = supportingText,
-                                        leadingContentData = ListItemLeadingContentData.AsyncImage(
-                                            imageUrl = localizedIssuerMetadata?.logo?.uri.toString(),
-                                            errorImage = AppIcons.Id,
-                                        ),
+                                        leadingContentData = portraitItem?.let {
+                                            ListItemLeadingContentData.UserImage (
+                                                userBase64Image = it.value,
+                                            )
+                                        },
                                         trailingContentData = ListItemTrailingContentData.Icon(
                                             iconData = AppIcons.KeyboardArrowRight
                                         )
