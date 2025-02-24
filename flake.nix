@@ -1,11 +1,14 @@
 {
-  description = "My Android project";
+  description = "EUDIW Android Application";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     devshell.url = "github:numtide/devshell";
     flake-utils.url = "github:numtide/flake-utils";
-    android.url = "github:tadfisher/android-nixpkgs";
+    android = {
+      url = "github:tadfisher/android-nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, devshell, flake-utils, android }:

@@ -1,10 +1,7 @@
 { pkgs }:
-
-with pkgs;
-
 let
   # android-studio is not available in aarch64-darwin
-  conditionalPackages = if pkgs.system != "aarch64-darwin" then [ android-studio ] else [ ];
+  conditionalPackages = if pkgs.system != "aarch64-darwin" then [ pkgs.android-studio ] else [ ];
 in
 with pkgs;
 
@@ -12,25 +9,25 @@ with pkgs;
 #
 # Documentation: https://github.com/numtide/devshell
 devshell.mkShell {
-  name = "android-project";
+  name = "eudiw-wallet-ui";
   motd = ''
-    Entered the Android app development environment.
+    Entered the Android app development environment for EUDIW.
   '';
   env = [
     {
       name = "ANDROID_HOME";
-      value = "${android-sdk}/share/android-sdk";
+      value = "${pkgs.android-sdk}/share/android-sdk";
     }
     {
       name = "ANDROID_SDK_ROOT";
-      value = "${android-sdk}/share/android-sdk";
+      value = "${pkgs.android-sdk}/share/android-sdk";
     }
     {
       name = "JAVA_HOME";
-      value = jdk.home;
+      value = pkgs.jdk.home;
     }
   ];
-  packages = [
+  packages = with pkgs; [
     android-sdk
     gradle
     jdk
