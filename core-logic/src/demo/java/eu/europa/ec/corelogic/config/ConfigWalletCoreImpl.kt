@@ -78,7 +78,9 @@ internal class WalletCoreConfigImpl(
                             listOf(
                                 BuildConfig.OPENID4VP_SCHEME,
                                 BuildConfig.EUDI_OPENID4VP_SCHEME,
-                                BuildConfig.MDOC_OPENID4VP_SCHEME
+                                BuildConfig.MDOC_OPENID4VP_SCHEME,
+                                // Additional scheme seen in WP-3/UC-4 Utrecht tests
+                                "mdoc",
                             )
                         )
                         withFormats(
@@ -105,6 +107,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.iaca_animo_eu_pid,
                         R.raw.iaca_animo_mdl,
                         //R.raw.iaca_apple,
+                        R.raw.iaca_bdr,
                         //R.raw.iaca_bosa,
                         //R.raw.iaca_bundesdruckerei,
                         R.raw.iaca_clear,
@@ -113,6 +116,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.iaca_clr_labs_2,
                         R.raw.iaca_coi_poland,
                         R.raw.iaca_credence_id,
+                        R.raw.iaca_diia,
                         R.raw.iaca_explicit_selection,
                         R.raw.iaca_felica,
                         R.raw.iaca_fime_eu_pid,
@@ -128,6 +132,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.iaca_idakto,
                         R.raw.iaca_idemia,
                         R.raw.iaca_ipzs,
+                        R.raw.iaca_lt,
                         R.raw.iaca_luxembourg_qua,
                         R.raw.iaca_luxembourg_tst,
                         R.raw.iaca_nortal,
@@ -160,6 +165,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.idemia_reader_ca,
                         R.raw.in_groupe_reader_ca,
                         R.raw.lapid_reader_ca,
+                        R.raw.lt_reader_ca,
                         R.raw.mattr_reader_ca,
                         R.raw.nearform_reader_ca,
                         R.raw.nist_readerca,
