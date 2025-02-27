@@ -52,14 +52,28 @@ internal class WalletCoreConfigImpl(
                         useStrongBoxForKeys = true
                     )
                     configureOpenId4Vp {
-                        withEncryptionAlgorithms(listOf(EncryptionAlgorithm.ECDH_ES))
+                        withEncryptionAlgorithms(
+                            listOf(
+                                EncryptionAlgorithm.ECDH_ES,
+                                EncryptionAlgorithm.ECDH_ES_A128KW,
+                                EncryptionAlgorithm.ECDH_ES_A192KW,
+                                EncryptionAlgorithm.ECDH_ES_A256KW,
+                                EncryptionAlgorithm.ECDH_1PU,
+                                EncryptionAlgorithm.ECDH_1PU_A128KW,
+                                EncryptionAlgorithm.ECDH_1PU_A192KW,
+                                EncryptionAlgorithm.ECDH_1PU_A256KW,
+                            )
+                        )
                         withEncryptionMethods(
                             listOf(
                                 EncryptionMethod.A128CBC_HS256,
-                                EncryptionMethod.A256GCM
+                                EncryptionMethod.A256GCM,
+                                EncryptionMethod.A192CBC_HS384,
+                                EncryptionMethod.A256CBC_HS512,
+                                EncryptionMethod.A128GCM,
+                                EncryptionMethod.A192GCM,
                             )
                         )
-
                         withClientIdSchemes(
                             listOf(
                                 ClientIdScheme.X509SanDns,
