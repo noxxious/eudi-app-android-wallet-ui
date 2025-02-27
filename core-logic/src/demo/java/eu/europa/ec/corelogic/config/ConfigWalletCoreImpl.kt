@@ -106,10 +106,10 @@ internal class WalletCoreConfigImpl(
                         R.raw.iaca_ama,
                         R.raw.iaca_animo_eu_pid,
                         R.raw.iaca_animo_mdl,
-                        //R.raw.iaca_apple,
+                        // R.raw.iaca_apple,
                         R.raw.iaca_bdr,
-                        //R.raw.iaca_bosa,
-                        //R.raw.iaca_bundesdruckerei,
+                        // R.raw.iaca_bosa,
+                        // R.raw.iaca_bundesdruckerei,
                         R.raw.iaca_clear,
                         R.raw.iaca_clr_labs_0,
                         R.raw.iaca_clr_labs_1,
@@ -152,6 +152,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.iaca_zetes,
                         R.raw.intermediate_iaca_luxembourg_qua,
                         R.raw.intermediate_iaca_luxembourg_tst,
+                        R.raw.sicpa_sub_iaca,
                         // Reader certs
                         R.raw.animo_reader_ca,
                         R.raw.bundesdruckerei_reader_ca,
@@ -168,7 +169,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.lt_reader_ca,
                         R.raw.mattr_reader_ca,
                         R.raw.nearform_reader_ca,
-                        R.raw.nist_readerca,
+                        R.raw.nist_reader_ca,
                         R.raw.ogcio_reader_ca,
                         R.raw.panasonic_reader_ca,
                         R.raw.rdw_test_reader_ca,
@@ -178,6 +179,7 @@ internal class WalletCoreConfigImpl(
                         R.raw.thales_reader_ca_2,
                         R.raw.thales_root_ca,
                         R.raw.toppan_reader_ca,
+                        R.raw.veridos_reader_ca,
                         R.raw.zetes_reader_ca,
                     )
                 }
