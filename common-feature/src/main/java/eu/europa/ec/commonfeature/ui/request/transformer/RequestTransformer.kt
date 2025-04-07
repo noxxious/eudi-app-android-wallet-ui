@@ -196,11 +196,12 @@ object RequestTransformer {
                 )
             }
 
+            var adminNumber = docPayloadDomain.docClaimsDomain.toList().find { it.elementIdentifier == "administrative_number" }?.value;
             RequestDocumentItemUi(
                 collapsedUiItem = CollapsedUiItem(
                     uiItem = ListItemData(
                         itemId = collapsedItemId,
-                        mainContentData = ListItemMainContentData.Text(text = docPayloadDomain.docName),
+                        mainContentData = ListItemMainContentData.Text(text = docPayloadDomain.docName + " " + adminNumber),
                         supportingText = resourceProvider.getString(R.string.request_collapsed_supporting_text),
                         trailingContentData = ListItemTrailingContentData.Icon(
                             iconData = AppIcons.KeyboardArrowDown
