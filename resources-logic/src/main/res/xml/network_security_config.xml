@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><!--
+<!--
   ~ Copyright (c) 2023 European Commission
   ~
   ~ Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
@@ -13,7 +13,5 @@
   ~ ANY KIND, either express or implied. See the Licence for the specific language
   ~ governing permissions and limitations under the Licence.
   -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <application android:networkSecurityConfig="@xml/network_security_config" />
-</manifest>
+<base-config cleartextTrafficPermitted="true" />
